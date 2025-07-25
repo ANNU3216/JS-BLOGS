@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Supabase Image Uploader</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <style>
+    body { font-family: sans-serif; background: #f9f9f9; padding: 20px; }
+    .uploader { border: 2px dashed #667eea; padding: 40px; border-radius: 10px; text-align: center; background: #fff; }
+    .preview { margin: 20px auto; max-width: 300px; }
+    .url-box { margin-top: 10px; color: #333; word-break: break-all; }
+    input[type="file"] { margin: 20px 0; }
+    button { background: #667eea; color: #fff; border: none; border-radius: 5px; padding: 10px 24px; cursor: pointer; }
+    button:hover { background: #4c51bf; }
+  </style>
+</head>
+<body>
+  <div class="uploader">
+    <h2>Image Upload for Blog</h2>
+    <input type="file" id="fileInput" accept="image/*" />
+    <div class="preview" id="preview"></div>
+    <button id="uploadBtn">Upload</button>
+    <div class="url-box" id="urlBox"></div>
+  </div>
+  <script>
+    // -- CHANGE THESE TO YOUR PROJECT SETTINGS --
+    const supabaseUrl = 'https://bzrcawqsbahxjliqlndb.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6cmNhd3FzYmFoeGpsaXFsbmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzMjI4OTgsImV4cCI6MjA2NTg5ODg5OH0._7zsMUy2-MsD6d2UUn31LguYCx6FZaB1ixGsiEyiYwU';
+    const bucket = 'blog-images'; // your bucket name!
+    // ------------------------------------------
+
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+    let selectedFile = null;
+
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+      selectedFile = e.target.files[0];
+      const preview = document.getElementById('preview');
+      if (selectedFile) {
+        preview.innerHTML = `<img src="${URL.createObjectURL(selectedFile)}" alt="Preview" style="max-width:100%;">`;
+      } else {
+        preview.innerHTML = '';
+      }
+      document.getElementById('urlBox').textContent = '';
+    });
+
+    document.getElementById('uploadBtn').addEventListener('click', async function() {
+      if (!selectedFile) {
+        alert('Please select an image file first.');
+        return;
+      }
+      const filePath = `${Date.now()}_${selectedFile.name}`;
+      document.getElementById('urlBox').textContent = 'Uploading...';
+
+      // Upload file
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, selectedFile, { cacheControl: '3600', upsert: false });
+
+      if (error) {
+        document.getElementById('urlBox').textContent = 'Upload failed: ' + error.message;
+        return;
+      }
+
+      // Get public URL
+      const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+      const publicUrl = publicData?.publicUrl;
+      if (!publicUrl) {
+        document.getElementById('urlBox').textContent = 'Upload succeeded but could not get public URL!';
+        return;
+      }
+      document.getElementById('urlBox').innerHTML = `<strong>Public URL:</strong><br>
+        <input type="text" value="${publicUrl}" style="width:100%;" readonly>
+        <br><small>Copy this URL and use it in your blog post content:</small>
+        <pre>![alt text](${publicUrl})</pre>`;
+    });
+  </script>
+</body>
+</html>
