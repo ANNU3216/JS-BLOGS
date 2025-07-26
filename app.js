@@ -76,7 +76,7 @@ function renderNavbar() {
 }
 
 // ======= AUTH LOGIC =======
-let authMode = 'login'; 
+let authMode = 'login'; // or 'register' or 'forgot'
 function showAuthModal(mode = 'login') {
     authMode = mode;
     document.getElementById('authModalTitle').textContent = mode === 'login' ? 'Login' : (mode === 'register' ? 'Register' : 'Password Reset');
@@ -98,22 +98,18 @@ function showAuthModal(mode = 'login') {
     focusTrap(document.getElementById('authModalOverlay'));
     setTimeout(()=>document.getElementById('authEmail').focus(), 120);
 }
-
 function closeAuthModal() {
     document.getElementById('authModalOverlay').style.display = 'none';
     untrapFocus();
 }
-
 document.getElementById('switchAuthText').onclick = function(e) {
     if (e.target.id === 'switchToRegister') showAuthModal('register');
     if (e.target.id === 'switchToLogin') showAuthModal('login');
 };
-
 document.getElementById('forgotPasswordLink').onclick = (e) => {
     e.preventDefault();
     showAuthModal('forgot');
 };
-
 document.getElementById('authForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const email = document.getElementById('authEmail').value;
@@ -129,6 +125,7 @@ document.getElementById('authForm').addEventListener('submit', async function(e)
             closeAuthModal();
             renderNavbar();
             showToast("Logged in!");
+            // Perform pending action if it was set before login
             if (pendingAction) {
                 performAction(pendingAction.action, pendingAction.id);
                 pendingAction = null;
@@ -152,7 +149,6 @@ document.getElementById('authForm').addEventListener('submit', async function(e)
         }
     }
 });
-
 document.getElementById('togglePassword').onclick = function() {
     const pw = document.getElementById('authPassword');
     if (pw.type === 'password') {
@@ -163,7 +159,6 @@ document.getElementById('togglePassword').onclick = function() {
         this.textContent = "👁️";
     }
 };
-
 // ======= GOOGLE SIGNUP =======
 document.getElementById("googleSignupBtn").onclick = async function(e) {
     e.preventDefault();
@@ -202,6 +197,23 @@ async function checkAuth() {
 }
 
 // ======= BLOG POSTS =======
+async function showArticleModal(postId) {
+    const post = posts.find(p => p.id === postId);
+    if (!post) {
+        console.error('Post not found:', postId);
+        return;
+    }
+    
+    // Open modal with full content
+    openArticleModal(post.title, post.content, post.category, post.publish_date, post.views);
+    
+    // Load comments and input
+    await loadComments(postId);
+    renderCommentInput(postId);
+    
+    // Focus trap for accessibility
+    focusTrap(document.getElementById('articleModalOverlay'));
+}
 async function loadPosts() {
     try {
         document.getElementById('blogSpinner').style.display = 'block';
@@ -209,7 +221,7 @@ async function loadPosts() {
             .from("blogs")
             .select("*")
             .eq("status", "published")
-            .order("publish_date", { ascending: false });
+            .order("publish_date", { ascending: false }); // Use publish_date
         document.getElementById('blogSpinner').style.display = 'none';
         if (error) {
             console.error('Error loading posts:', error);
@@ -228,7 +240,7 @@ async function loadPosts() {
     }
 }
 
-// ======= FIXED RENDER POSTS FUNCTION =======
+// Enhanced renderPosts function with attractive design
 function renderPosts() {
     const blogList = document.getElementById('blogList');
     if (!filteredPosts.length) {
@@ -260,6 +272,7 @@ function renderPosts() {
 document.getElementById('searchInput').addEventListener('input', function() { requireLogin('search'); });
 document.getElementById('categoryFilter').addEventListener('change', function() { requireLogin('search'); });
 
+// ======= FILTER FUNCTION =======
 function filterPosts() {
     const searchVal = document.getElementById('searchInput').value.trim().toLowerCase();
     const catVal = document.getElementById('categoryFilter').value;
@@ -269,95 +282,6 @@ function filterPosts() {
         return matchesTitle && matchesCategory;
     });
     renderPosts();
-}
-
-// ======= FIXED ARTICLE MODAL FUNCTIONS =======
-async function showArticleModal(postId) {
-    const post = posts.find(p => p.id === postId);
-    if (!post) {
-        showToast("Article not found!");
-        return;
-    }
-    
-    // Increment view count
-    await incrementViewCount(postId);
-    
-    // Open the modal with full content
-    openArticleModal(post.title, post.content, post.category, post.publish_date, post.views);
-    
-    // Load comments
-    await loadComments(postId);
-    renderCommentInput(postId);
-}
-
-function openArticleModal(title, content, category, date, views) {
-    // Prevent body scrolling
-    document.body.classList.add('modal-open');
-    document.body.classList.remove('modal-closed');
-    
-    // Set modal content
-    document.getElementById('articleTitle').textContent = title || 'Untitled';
-    document.getElementById('articleDate').textContent = formatDateSafe(date);
-    document.getElementById('articleCategory').textContent = category || 'General';
-    document.getElementById('articleViews').textContent = views ? `${views} views` : '0 views';
-    
-    // Format and set content - CRITICAL: ensure full content is displayed
-    const articleContent = document.getElementById('articleContent');
-    articleContent.innerHTML = formatArticleContent(content);
-    
-    // Show modal
-    const modalOverlay = document.getElementById('articleModalOverlay');
-    modalOverlay.style.display = 'block';
-    
-    // Focus trap
-    focusTrap(modalOverlay);
-    
-    // Scroll modal to top
-    setTimeout(() => {
-        modalOverlay.scrollTop = 0;
-    }, 100);
-}
-
-function formatArticleContent(content) {
-    if (!content) return '<p>Content not available.</p>';
-    
-    // Convert markdown-style formatting to HTML
-    let formattedContent = content
-        .replace(/\n\n/g, '</p><p>')
-        .replace(/\n/g, '<br>')
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/`(.*?)`/g, '<code>$1</code>');
-    
-    // Wrap in paragraph tags if not already HTML
-    if (!formattedContent.includes('<p>') && !formattedContent.includes('<div>')) {
-        formattedContent = '<p>' + formattedContent + '</p>';
-    }
-    
-    return formattedContent;
-}
-
-function closeArticleModal() {
-    // Restore body scrolling
-    document.body.classList.remove('modal-open');
-    document.body.classList.add('modal-closed');
-    
-    // Hide modal
-    const modalOverlay = document.getElementById('articleModalOverlay');
-    modalOverlay.style.display = 'none';
-    
-    // Remove focus trap
-    untrapFocus();
-    
-    // Clear URL parameter
-    if (window.history.replaceState) {
-        window.history.replaceState({}, '', window.location.pathname);
-    }
-    
-    // Clear content to prevent memory leaks
-    setTimeout(() => {
-        document.getElementById('articleContent').innerHTML = '';
-    }, 300);
 }
 
 // ======= COMMENTS LOGIC =======
@@ -461,11 +385,249 @@ function renderCommentInput(post_id) {
     };
 }
 
+// MODAL JAVASCRIPT FIXES
+
+// REPLACE or ADD these JavaScript functions to fix modal content display
+
+// 1. Enhanced function to open article modal with full content
+function openArticleModal(title, content, category, date, views) {
+    // Prevent body scrolling
+    document.body.classList.add('modal-open');
+        
+    // Set modal content
+    document.getElementById('articleTitle').textContent = title || 'Untitled';
+    document.getElementById('articleDate').textContent = formatDateSafe(date);
+    document.getElementById('articleCategory').textContent = category || 'General';
+    document.getElementById('articleViews').textContent = views ? `${views} views` : '0 views';
+    
+    // Format and set content - CRITICAL: ensure full content is displayed
+    const articleContent = document.getElementById('articleContent');
+    if (content && content.trim()) {
+        articleContent.innerHTML = formatArticleContent(content);
+    } else {
+        articleContent.innerHTML = '<p>Content not available.</p>';
+    }
+    
+    // Show modal
+    const modalOverlay = document.getElementById('articleModalOverlay');
+    modalOverlay.style.display = 'block';
+    
+    // Scroll modal to top
+    setTimeout(() => {
+        modalOverlay.scrollTop = 0;
+        const modal = modalOverlay.querySelector('.modal');
+        if (modal) modal.scrollTop = 0;
+    }, 100);
+    
+    console.log('Modal opened with content length:', content ? content.length : 0);
+}
+
+// 2. Enhanced content formatting function
+function formatArticleContent(content) {
+    if (!content || typeof content !== 'string') {
+        return '<p>Content not available.</p>';
+    }
+    
+    // Clean and format content
+    let formattedContent = content
+        .replace(/\r\n/g, '\n')  // Normalize line endings
+        .replace(/\n\s*\n\s*\n/g, '\n\n')  // Remove extra blank lines
+        .replace(/\n\n/g, '</p><p>')  // Convert double newlines to paragraphs
+        .replace(/\n/g, '<br>')  // Convert single newlines to breaks
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Bold
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')  // Italic
+        .replace(/`(.*?)`/g, '<code>$1</code>')  // Inline code
+        .replace(/#{3}\s*(.*?)$/gm, '<h3>$1</h3>')  // H3 headers
+        .replace(/#{2}\s*(.*?)$/gm, '<h2>$1</h2>')  // H2 headers
+        .replace(/#{1}\s*(.*?)$/gm, '<h1>$1</h1>'); // H1 headers
+    
+    // Wrap in paragraph tags if not already HTML
+    if (!formattedContent.includes('<p>') && !formattedContent.includes('<div>')) {
+        formattedContent = '<p>' + formattedContent + '</p>';
+    }
+    
+    return formattedContent;
+}
+
+// 3. Enhanced close modal function
+function closeArticleModal() {
+    // Restore body scrolling
+    document.body.classList.remove('modal-open');
+    
+    // Hide modal
+    const modalOverlay = document.getElementById('articleModalOverlay');
+    modalOverlay.style.display = 'none';
+    
+    // Clear content to prevent memory leaks
+    setTimeout(() => {
+        document.getElementById('articleContent').innerHTML = '';
+    }, 300);
+}
+
+// 4. Enhanced blog card click handler - UPDATE YOUR EXISTING FUNCTION
+function renderBlogCards(blogs) {
+    const blogList = document.getElementById('blogList');
+    
+    if (!blogs || blogs.length === 0) {
+        blogList.innerHTML = `
+            <div class="no-posts-container">
+                <div class="no-posts-icon">📝</div>
+                <h3>No Posts Yet</h3>
+                <p>Check back later for amazing content!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    blogList.innerHTML = blogs.map(blog => `
+        <div class="enhanced-blog-card" 
+             data-full-content="${encodeURIComponent(blog.content || blog.description || '')}"
+             data-author="${blog.author || 'Admin'}"
+             data-date="${blog.created_at || new Date().toLocaleDateString()}"
+             data-category="${blog.category || 'General'}"
+             data-views="${blog.views || 0}">
+            
+            <div class="card-image-container">
+                <img src="${blog.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400'}" 
+                     alt="${blog.title}" class="card-image">
+                <div class="category-badge" style="background: ${getCategoryColor(blog.category)}">${blog.category || 'General'}</div>
+                <div class="reading-time">📖 ${calculateReadingTime(blog.content || blog.description)} min</div>
+            </div>
+            
+            <div class="card-content">
+                <div class="card-header">
+                    <h3 class="blog-title-enhanced">${blog.title}</h3>
+                    <div class="post-stats">
+                        <div class="stat-item">👁️ ${blog.views || 0}</div>
+                        <div class="stat-item">💬 ${blog.comments || 0}</div>
+                    </div>
+                </div>
+                
+                <p class="blog-excerpt-enhanced">${truncateText(blog.description || blog.content || '', 120)}</p>
+                
+                <div class="card-footer">
+                    <div class="post-meta">
+                        <div class="author-info">
+                            <img src="https://ui-avatars.com/api/?name=${blog.author || 'Admin'}&background=4f46e5&color=fff&size=40" 
+                                 alt="${blog.author || 'Admin'}" class="author-avatar">
+                            <div class="author-details">
+                                <div class="author-name">${blog.author || 'Admin'}</div>
+                                <div class="post-date">${formatDate(blog.created_at)}</div>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="action-btn bookmark-btn" onclick="toggleBookmark(${blog.id})">🔖</button>
+                            <button class="action-btn like-btn" onclick="toggleLike(${blog.id})">❤️</button>
+                            <button class="action-btn share-btn" onclick="sharePost(${blog.id})">📤</button>
+                        </div>
+                    </div>
+                    
+                    <button class="read-more-btn" onclick="showFullArticle(this)">
+                        Read Full Article
+                        <span class="arrow-icon">→</span>
+                    </button>
+                </div>
+            </div>
+            <div class="card-hover-effect"></div>
+        </div>
+    `).join('');
+}
+
+// 5. Function to show full article - CRITICAL FIX
+function showFullArticle(button) {
+    const card = button.closest('.enhanced-blog-card');
+    const title = card.querySelector('.blog-title-enhanced').textContent;
+    const fullContent = decodeURIComponent(card.dataset.fullContent);
+    const author = card.dataset.author;
+    const date = card.dataset.date;
+    const category = card.dataset.category;
+    const views = card.dataset.views;
+    
+    // Increment view count if you have that functionality
+    if (card.dataset.id) {
+        incrementViewCount(card.dataset.id);
+    }
+    
+    // Open modal with full content
+    openArticleModal(title, fullContent, category, date, views);
+}
+
+// 6. Helper functions
+function truncateText(text, maxLength) {
+    if (!text) return '';
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+}
+
+function calculateReadingTime(content) {
+    if (!content) return 1;
+    const wordsPerMinute = 200;
+    const wordCount = content.split(' ').length;
+    return Math.max(1, Math.ceil(wordCount / wordsPerMinute));
+}
+
+function getCategoryColor(category) {
+    const colors = {
+        'JavaScript': '#f7df1e',
+        'React': '#61dafb',
+        'Node.js': '#339933',
+        'CSS': '#1572b6',
+        'HTML': '#e34f26',
+        'Tutorial': '#ff6b6b',
+        'Tips & Tricks': '#4ecdc4'
+    };
+    return colors[category] || '#6c63ff';
+}
+
+function formatDate(dateString) {
+    if (!dateString) return new Date().toLocaleDateString();
+    return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+}
+
+// 7. Event listeners - ADD TO YOUR EXISTING DOMContentLoaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Close modal when clicking overlay
+    document.getElementById('articleModalOverlay')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeArticleModal();
+        }
+    });
+    
+    // ESC key to close modal
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeArticleModal();
+        }
+    });
+    
+    // Prevent modal content from closing when clicked
+    document.querySelector('#articleModalOverlay .modal')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+});
+
 async function incrementViewCount(postId) {
     try {
         await supabase.rpc('increment_post_views', { post_id: postId });
     } catch (error) {
         console.log('View count increment failed:', error);
+    }
+}
+
+function formatDateTime(dateString) {
+    if (!dateString) return '';
+    try {
+        const date = new Date(dateString);
+        return isNaN(date) ? 'Unscheduled' : date.toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    } catch (error) {
+        console.error('Error formatting date:', error);
+        return 'Unscheduled';
     }
 }
 
@@ -495,20 +657,6 @@ function formatDateSafe(dateString) {
     try {
         const date = new Date(dateString);
         return isNaN(date) ? 'Unscheduled' : date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    } catch (error) {
-        console.error('Error formatting date:', error);
-        return 'Unscheduled';
-    }
-}
-
-function formatDateTime(dateString) {
-    if (!dateString) return '';
-    try {
-        const date = new Date(dateString);
-        return isNaN(date) ? 'Unscheduled' : date.toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
     } catch (error) {
         console.error('Error formatting date:', error);
         return 'Unscheduled';
@@ -568,28 +716,9 @@ function untrapFocus() {
     });
 }
 
-// ======= EVENT LISTENERS =======
-document.addEventListener('DOMContentLoaded', function() {
-    // Close modal when clicking overlay
-    document.getElementById('articleModalOverlay')?.addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeArticleModal();
-        }
-    });
-    
-    // Prevent modal content from closing when clicked
-    document.querySelector('#articleModalOverlay .modal')?.addEventListener('click', function(e) {
-        e.stopPropagation();
-    });
-});
-
 window.onclick = function(e) {
     if (e.target.classList && e.target.classList.contains('modal-overlay')) {
         closeAuthModal();
         closeArticleModal();
     }
 };
-
-function scrollToBlogs() {
-    document.getElementById('blogs').scrollIntoView({ behavior: 'smooth' });
-}
