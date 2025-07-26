@@ -205,7 +205,7 @@ async function showArticleModal(postId) {
     }
     
     // Open modal with full content
-    openArticleModal(post.title, post.content, post.category, post.publish_date, post.views);
+    openArticleModal(post.title, post.content, post.category, post.publish_date, post.views, post.image_url);
     
     // Load comments and input
     await loadComments(postId);
@@ -214,6 +214,7 @@ async function showArticleModal(postId) {
     // Focus trap for accessibility
     focusTrap(document.getElementById('articleModalOverlay'));
 }
+
 async function loadPosts() {
     try {
         document.getElementById('blogSpinner').style.display = 'block';
@@ -221,7 +222,7 @@ async function loadPosts() {
             .from("blogs")
             .select("*")
             .eq("status", "published")
-            .order("publish_date", { ascending: false }); // Use publish_date
+            .order("publish_date", { ascending: false });
         document.getElementById('blogSpinner').style.display = 'none';
         if (error) {
             console.error('Error loading posts:', error);
@@ -240,7 +241,7 @@ async function loadPosts() {
     }
 }
 
-// Enhanced renderPosts function with attractive design
+// FIXED: Enhanced renderPosts function with proper image handling
 function renderPosts() {
     const blogList = document.getElementById('blogList');
     if (!filteredPosts.length) {
@@ -250,19 +251,57 @@ function renderPosts() {
         </div>`;
         return;
     }
+    
     blogList.innerHTML = filteredPosts.map(post => {
         let excerpt = post.excerpt;
         if (!excerpt || excerpt === 'null') {
             excerpt = post.content ? post.content.substring(0, 150) + '...' : 'No preview available';
         }
+        
+        // Get proper image URL from post data or use fallback
+        const imageUrl = post.image_url || post.featured_image || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=250&fit=crop';
+        
         return `
-            <div class="blog-card" data-id="${post.id}">
-                <div class="blog-title">${escapeHTML(post.title)}</div>
-                <div class="blog-excerpt">${escapeHTML(excerpt)}</div>
-                <div class="blog-meta">
-                    <span>📅 ${formatDateSafe(post.publish_date)}</span>
-                    <span class="read-more" tabindex="0" onclick="requireLogin('readMore', ${post.id})">Read More →</span>
+            <div class="enhanced-blog-card" data-id="${post.id}">
+                <div class="card-image-container">
+                    <img src="${imageUrl}" 
+                         alt="${escapeHTML(post.title)}" 
+                         class="card-image"
+                         onerror="this.src='https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=250&fit=crop'">
+                    <div class="category-badge" style="background: ${getCategoryColor(post.category)}">${post.category || 'General'}</div>
+                    <div class="reading-time">📖 ${calculateReadingTime(post.content)} min</div>
                 </div>
+                
+                <div class="card-content">
+                    <div class="card-header">
+                        <h3 class="blog-title-enhanced">${escapeHTML(post.title)}</h3>
+                        <div class="post-stats">
+                            <div class="stat-item">👁️ ${post.views || 0}</div>
+                            <div class="stat-item">💬 ${post.comment_count || 0}</div>
+                        </div>
+                    </div>
+                    
+                    <p class="blog-excerpt-enhanced">${escapeHTML(excerpt)}</p>
+                    
+                    <div class="card-footer">
+                        <div class="post-meta">
+                            <div class="author-info">
+                                <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(post.author || 'Admin')}&background=4f46e5&color=fff&size=40" 
+                                     alt="${post.author || 'Admin'}" class="author-avatar">
+                                <div class="author-details">
+                                    <div class="author-name">${post.author || 'Admin'}</div>
+                                    <div class="post-date">${formatDateSafe(post.publish_date)}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button class="read-more-btn" onclick="requireLogin('readMore', ${post.id})">
+                            Read Full Article
+                            <span class="arrow-icon">→</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-hover-effect"></div>
             </div>
         `;
     }).join('');
@@ -385,12 +424,8 @@ function renderCommentInput(post_id) {
     };
 }
 
-// MODAL JAVASCRIPT FIXES
-
-// REPLACE or ADD these JavaScript functions to fix modal content display
-
-// 1. Enhanced function to open article modal with full content
-function openArticleModal(title, content, category, date, views) {
+// FIXED: Enhanced function to open article modal with full content and image
+function openArticleModal(title, content, category, date, views, imageUrl) {
     // Prevent body scrolling
     document.body.classList.add('modal-open');
         
@@ -399,6 +434,20 @@ function openArticleModal(title, content, category, date, views) {
     document.getElementById('articleDate').textContent = formatDateSafe(date);
     document.getElementById('articleCategory').textContent = category || 'General';
     document.getElementById('articleViews').textContent = views ? `${views} views` : '0 views';
+    
+    // Set featured image if exists
+    const articleImage = document.getElementById('articleImage');
+    if (articleImage) {
+        if (imageUrl) {
+            articleImage.src = imageUrl;
+            articleImage.style.display = 'block';
+            articleImage.onerror = function() {
+                this.style.display = 'none';
+            };
+        } else {
+            articleImage.style.display = 'none';
+        }
+    }
     
     // Format and set content - CRITICAL: ensure full content is displayed
     const articleContent = document.getElementById('articleContent');
@@ -411,6 +460,7 @@ function openArticleModal(title, content, category, date, views) {
     // Show modal
     const modalOverlay = document.getElementById('articleModalOverlay');
     modalOverlay.style.display = 'block';
+    modalOverlay.classList.add('active');
     
     // Scroll modal to top
     setTimeout(() => {
@@ -422,7 +472,7 @@ function openArticleModal(title, content, category, date, views) {
     console.log('Modal opened with content length:', content ? content.length : 0);
 }
 
-// 2. Enhanced content formatting function
+// FIXED: Enhanced content formatting function
 function formatArticleContent(content) {
     if (!content || typeof content !== 'string') {
         return '<p>Content not available.</p>';
@@ -449,7 +499,7 @@ function formatArticleContent(content) {
     return formattedContent;
 }
 
-// 3. Enhanced close modal function
+// FIXED: Enhanced close modal function
 function closeArticleModal() {
     // Restore body scrolling
     document.body.classList.remove('modal-open');
@@ -457,102 +507,24 @@ function closeArticleModal() {
     // Hide modal
     const modalOverlay = document.getElementById('articleModalOverlay');
     modalOverlay.style.display = 'none';
+    modalOverlay.classList.remove('active');
+    
+    // Clear URL
+    if (window.history.pushState) {
+        window.history.pushState({}, '', window.location.pathname);
+    }
     
     // Clear content to prevent memory leaks
     setTimeout(() => {
         document.getElementById('articleContent').innerHTML = '';
+        const articleImage = document.getElementById('articleImage');
+        if (articleImage) {
+            articleImage.style.display = 'none';
+        }
     }, 300);
 }
 
-// 4. Enhanced blog card click handler - UPDATE YOUR EXISTING FUNCTION
-function renderBlogCards(blogs) {
-    const blogList = document.getElementById('blogList');
-    
-    if (!blogs || blogs.length === 0) {
-        blogList.innerHTML = `
-            <div class="no-posts-container">
-                <div class="no-posts-icon">📝</div>
-                <h3>No Posts Yet</h3>
-                <p>Check back later for amazing content!</p>
-            </div>
-        `;
-        return;
-    }
-    
-    blogList.innerHTML = blogs.map(blog => `
-        <div class="enhanced-blog-card" 
-             data-full-content="${encodeURIComponent(blog.content || blog.description || '')}"
-             data-author="${blog.author || 'Admin'}"
-             data-date="${blog.created_at || new Date().toLocaleDateString()}"
-             data-category="${blog.category || 'General'}"
-             data-views="${blog.views || 0}">
-            
-            <div class="card-image-container">
-                <img src="${blog.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400'}" 
-                     alt="${blog.title}" class="card-image">
-                <div class="category-badge" style="background: ${getCategoryColor(blog.category)}">${blog.category || 'General'}</div>
-                <div class="reading-time">📖 ${calculateReadingTime(blog.content || blog.description)} min</div>
-            </div>
-            
-            <div class="card-content">
-                <div class="card-header">
-                    <h3 class="blog-title-enhanced">${blog.title}</h3>
-                    <div class="post-stats">
-                        <div class="stat-item">👁️ ${blog.views || 0}</div>
-                        <div class="stat-item">💬 ${blog.comments || 0}</div>
-                    </div>
-                </div>
-                
-                <p class="blog-excerpt-enhanced">${truncateText(blog.description || blog.content || '', 120)}</p>
-                
-                <div class="card-footer">
-                    <div class="post-meta">
-                        <div class="author-info">
-                            <img src="https://ui-avatars.com/api/?name=${blog.author || 'Admin'}&background=4f46e5&color=fff&size=40" 
-                                 alt="${blog.author || 'Admin'}" class="author-avatar">
-                            <div class="author-details">
-                                <div class="author-name">${blog.author || 'Admin'}</div>
-                                <div class="post-date">${formatDate(blog.created_at)}</div>
-                            </div>
-                        </div>
-                        <div class="card-actions">
-                            <button class="action-btn bookmark-btn" onclick="toggleBookmark(${blog.id})">🔖</button>
-                            <button class="action-btn like-btn" onclick="toggleLike(${blog.id})">❤️</button>
-                            <button class="action-btn share-btn" onclick="sharePost(${blog.id})">📤</button>
-                        </div>
-                    </div>
-                    
-                    <button class="read-more-btn" onclick="showFullArticle(this)">
-                        Read Full Article
-                        <span class="arrow-icon">→</span>
-                    </button>
-                </div>
-            </div>
-            <div class="card-hover-effect"></div>
-        </div>
-    `).join('');
-}
-
-// 5. Function to show full article - CRITICAL FIX
-function showFullArticle(button) {
-    const card = button.closest('.enhanced-blog-card');
-    const title = card.querySelector('.blog-title-enhanced').textContent;
-    const fullContent = decodeURIComponent(card.dataset.fullContent);
-    const author = card.dataset.author;
-    const date = card.dataset.date;
-    const category = card.dataset.category;
-    const views = card.dataset.views;
-    
-    // Increment view count if you have that functionality
-    if (card.dataset.id) {
-        incrementViewCount(card.dataset.id);
-    }
-    
-    // Open modal with full content
-    openArticleModal(title, fullContent, category, date, views);
-}
-
-// 6. Helper functions
+// FIXED: Helper functions
 function truncateText(text, maxLength) {
     if (!text) return '';
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
@@ -573,41 +545,11 @@ function getCategoryColor(category) {
         'CSS': '#1572b6',
         'HTML': '#e34f26',
         'Tutorial': '#ff6b6b',
-        'Tips & Tricks': '#4ecdc4'
+        'Tips & Tricks': '#4ecdc4',
+        'General': '#6c63ff'
     };
     return colors[category] || '#6c63ff';
 }
-
-function formatDate(dateString) {
-    if (!dateString) return new Date().toLocaleDateString();
-    return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
-}
-
-// 7. Event listeners - ADD TO YOUR EXISTING DOMContentLoaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Close modal when clicking overlay
-    document.getElementById('articleModalOverlay')?.addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeArticleModal();
-        }
-    });
-    
-    // ESC key to close modal
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeArticleModal();
-        }
-    });
-    
-    // Prevent modal content from closing when clicked
-    document.querySelector('#articleModalOverlay .modal')?.addEventListener('click', function(e) {
-        e.stopPropagation();
-    });
-});
 
 async function incrementViewCount(postId) {
     try {
