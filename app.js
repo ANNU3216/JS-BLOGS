@@ -76,7 +76,7 @@ function renderNavbar() {
 }
 
 // ======= AUTH LOGIC =======
-let authMode = 'login'; // or 'register' or 'forgot'
+let authMode = 'login'; 
 function showAuthModal(mode = 'login') {
     authMode = mode;
     document.getElementById('authModalTitle').textContent = mode === 'login' ? 'Login' : (mode === 'register' ? 'Register' : 'Password Reset');
@@ -98,18 +98,22 @@ function showAuthModal(mode = 'login') {
     focusTrap(document.getElementById('authModalOverlay'));
     setTimeout(()=>document.getElementById('authEmail').focus(), 120);
 }
+
 function closeAuthModal() {
     document.getElementById('authModalOverlay').style.display = 'none';
     untrapFocus();
 }
+
 document.getElementById('switchAuthText').onclick = function(e) {
     if (e.target.id === 'switchToRegister') showAuthModal('register');
     if (e.target.id === 'switchToLogin') showAuthModal('login');
 };
+
 document.getElementById('forgotPasswordLink').onclick = (e) => {
     e.preventDefault();
     showAuthModal('forgot');
 };
+
 document.getElementById('authForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const email = document.getElementById('authEmail').value;
@@ -125,7 +129,6 @@ document.getElementById('authForm').addEventListener('submit', async function(e)
             closeAuthModal();
             renderNavbar();
             showToast("Logged in!");
-            // Perform pending action if it was set before login
             if (pendingAction) {
                 performAction(pendingAction.action, pendingAction.id);
                 pendingAction = null;
@@ -149,6 +152,7 @@ document.getElementById('authForm').addEventListener('submit', async function(e)
         }
     }
 });
+
 document.getElementById('togglePassword').onclick = function() {
     const pw = document.getElementById('authPassword');
     if (pw.type === 'password') {
@@ -159,6 +163,7 @@ document.getElementById('togglePassword').onclick = function() {
         this.textContent = "👁️";
     }
 };
+
 // ======= GOOGLE SIGNUP =======
 document.getElementById("googleSignupBtn").onclick = async function(e) {
     e.preventDefault();
@@ -204,7 +209,7 @@ async function loadPosts() {
             .from("blogs")
             .select("*")
             .eq("status", "published")
-            .order("publish_date", { ascending: false }); // Use publish_date
+            .order("publish_date", { ascending: false });
         document.getElementById('blogSpinner').style.display = 'none';
         if (error) {
             console.error('Error loading posts:', error);
@@ -223,7 +228,7 @@ async function loadPosts() {
     }
 }
 
-// Enhanced renderPosts function with attractive design
+// ======= FIXED RENDER POSTS FUNCTION =======
 function renderPosts() {
     const blogList = document.getElementById('blogList');
     if (!filteredPosts.length) {
@@ -239,7 +244,7 @@ function renderPosts() {
             excerpt = post.content ? post.content.substring(0, 150) + '...' : 'No preview available';
         }
         return `
-            <div class="blog-card">
+            <div class="blog-card" data-id="${post.id}">
                 <div class="blog-title">${escapeHTML(post.title)}</div>
                 <div class="blog-excerpt">${escapeHTML(excerpt)}</div>
                 <div class="blog-meta">
@@ -255,7 +260,6 @@ function renderPosts() {
 document.getElementById('searchInput').addEventListener('input', function() { requireLogin('search'); });
 document.getElementById('categoryFilter').addEventListener('change', function() { requireLogin('search'); });
 
-// ======= FILTER FUNCTION =======
 function filterPosts() {
     const searchVal = document.getElementById('searchInput').value.trim().toLowerCase();
     const catVal = document.getElementById('categoryFilter').value;
@@ -265,6 +269,95 @@ function filterPosts() {
         return matchesTitle && matchesCategory;
     });
     renderPosts();
+}
+
+// ======= FIXED ARTICLE MODAL FUNCTIONS =======
+async function showArticleModal(postId) {
+    const post = posts.find(p => p.id === postId);
+    if (!post) {
+        showToast("Article not found!");
+        return;
+    }
+    
+    // Increment view count
+    await incrementViewCount(postId);
+    
+    // Open the modal with full content
+    openArticleModal(post.title, post.content, post.category, post.publish_date, post.views);
+    
+    // Load comments
+    await loadComments(postId);
+    renderCommentInput(postId);
+}
+
+function openArticleModal(title, content, category, date, views) {
+    // Prevent body scrolling
+    document.body.classList.add('modal-open');
+    document.body.classList.remove('modal-closed');
+    
+    // Set modal content
+    document.getElementById('articleTitle').textContent = title || 'Untitled';
+    document.getElementById('articleDate').textContent = formatDateSafe(date);
+    document.getElementById('articleCategory').textContent = category || 'General';
+    document.getElementById('articleViews').textContent = views ? `${views} views` : '0 views';
+    
+    // Format and set content - CRITICAL: ensure full content is displayed
+    const articleContent = document.getElementById('articleContent');
+    articleContent.innerHTML = formatArticleContent(content);
+    
+    // Show modal
+    const modalOverlay = document.getElementById('articleModalOverlay');
+    modalOverlay.style.display = 'block';
+    
+    // Focus trap
+    focusTrap(modalOverlay);
+    
+    // Scroll modal to top
+    setTimeout(() => {
+        modalOverlay.scrollTop = 0;
+    }, 100);
+}
+
+function formatArticleContent(content) {
+    if (!content) return '<p>Content not available.</p>';
+    
+    // Convert markdown-style formatting to HTML
+    let formattedContent = content
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`(.*?)`/g, '<code>$1</code>');
+    
+    // Wrap in paragraph tags if not already HTML
+    if (!formattedContent.includes('<p>') && !formattedContent.includes('<div>')) {
+        formattedContent = '<p>' + formattedContent + '</p>';
+    }
+    
+    return formattedContent;
+}
+
+function closeArticleModal() {
+    // Restore body scrolling
+    document.body.classList.remove('modal-open');
+    document.body.classList.add('modal-closed');
+    
+    // Hide modal
+    const modalOverlay = document.getElementById('articleModalOverlay');
+    modalOverlay.style.display = 'none';
+    
+    // Remove focus trap
+    untrapFocus();
+    
+    // Clear URL parameter
+    if (window.history.replaceState) {
+        window.history.replaceState({}, '', window.location.pathname);
+    }
+    
+    // Clear content to prevent memory leaks
+    setTimeout(() => {
+        document.getElementById('articleContent').innerHTML = '';
+    }, 300);
 }
 
 // ======= COMMENTS LOGIC =======
@@ -368,57 +461,11 @@ function renderCommentInput(post_id) {
     };
 }
 
-// ======= ARTICLE MODAL =======
-function showArticleModal(id) {
-    const post = posts.find(p => p.id === id);
-    if (!post) {
-        showToast("Article not found");
-        return;
-    }
-    document.getElementById('articleTitle').textContent = post.title;
-    document.getElementById('articleDate').textContent = `📅 ${formatDateSafe(post.publish_date)}`;
-    document.getElementById('articleCategory').textContent = `🏷️ ${post.category}`;
-    document.getElementById('articleViews').textContent = `👀 ${post.views || 0} views`;
-    if (window.marked && post.content) {
-        document.getElementById('articleContent').innerHTML = marked.parse(post.content);
-    } else {
-        document.getElementById('articleContent').innerHTML = (post.content || '').replace(/\n/g, '<br>');
-    }
-    document.getElementById('articleModalOverlay').style.display = 'flex';
-    focusTrap(document.getElementById('articleModalOverlay'));
-    setTimeout(()=>document.getElementById('articleModalOverlay').focus(), 120);
-    loadComments(id);
-    renderCommentInput(id);
-    incrementViewCount(id);
-}
-
-function closeArticleModal() {
-    document.getElementById('articleModalOverlay').style.display = 'none';
-    untrapFocus();
-    if (window.history.pushState) {
-        window.history.pushState({}, '', window.location.pathname);
-    }
-}
-
 async function incrementViewCount(postId) {
     try {
         await supabase.rpc('increment_post_views', { post_id: postId });
     } catch (error) {
         console.log('View count increment failed:', error);
-    }
-}
-
-function formatDateTime(dateString) {
-    if (!dateString) return '';
-    try {
-        const date = new Date(dateString);
-        return isNaN(date) ? 'Unscheduled' : date.toLocaleString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
-    } catch (error) {
-        console.error('Error formatting date:', error);
-        return 'Unscheduled';
     }
 }
 
@@ -448,6 +495,20 @@ function formatDateSafe(dateString) {
     try {
         const date = new Date(dateString);
         return isNaN(date) ? 'Unscheduled' : date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    } catch (error) {
+        console.error('Error formatting date:', error);
+        return 'Unscheduled';
+    }
+}
+
+function formatDateTime(dateString) {
+    if (!dateString) return '';
+    try {
+        const date = new Date(dateString);
+        return isNaN(date) ? 'Unscheduled' : date.toLocaleString('en-US', { 
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
     } catch (error) {
         console.error('Error formatting date:', error);
         return 'Unscheduled';
@@ -507,9 +568,28 @@ function untrapFocus() {
     });
 }
 
+// ======= EVENT LISTENERS =======
+document.addEventListener('DOMContentLoaded', function() {
+    // Close modal when clicking overlay
+    document.getElementById('articleModalOverlay')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeArticleModal();
+        }
+    });
+    
+    // Prevent modal content from closing when clicked
+    document.querySelector('#articleModalOverlay .modal')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+});
+
 window.onclick = function(e) {
     if (e.target.classList && e.target.classList.contains('modal-overlay')) {
         closeAuthModal();
         closeArticleModal();
     }
 };
+
+function scrollToBlogs() {
+    document.getElementById('blogs').scrollIntoView({ behavior: 'smooth' });
+}
