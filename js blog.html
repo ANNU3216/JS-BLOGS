@@ -12,6 +12,383 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <!-- Custom Styles -->
     <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Prevent body scroll when modal is open */
+        body.modal-open {
+            overflow: hidden;
+        }
+        
+        /* Enhanced Modal with Sidebar Styles */
+        .modal-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .article-sidebar {
+            width: 300px;
+            background: #ffffff;
+            border-right: 1px solid #e5e7eb;
+            overflow-y: auto;
+            transition: transform 0.3s ease, width 0.3s ease;
+            z-index: 1001;
+        }
+
+        .article-sidebar.collapsed {
+            transform: translateX(-100%);
+            width: 0;
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f9fafb;
+        }
+
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #374151;
+        }
+
+        .close-sidebar {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .close-sidebar:hover {
+            background-color: #e5e7eb;
+        }
+
+        .sidebar-content {
+            padding: 1rem;
+        }
+
+        .sidebar-post {
+            display: flex;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: white;
+        }
+
+        .sidebar-post:hover,
+        .sidebar-post:focus {
+            border-color: #6366f1;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.1);
+            transform: translateY(-1px);
+            outline: none;
+        }
+
+        .sidebar-post-image {
+            width: 60px;
+            height: 45px;
+            object-fit: cover;
+            border-radius: 6px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-post-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sidebar-post-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin: 0 0 0.25rem 0;
+            color: #374151;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .sidebar-post-meta {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .sidebar-post-category {
+            font-size: 0.75rem;
+            background: #6366f1;
+            color: white;
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        .sidebar-post-date {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        .sidebar-post-stats {
+            display: flex;
+            gap: 0.75rem;
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        .article-modal {
+            flex: 1;
+            margin: 0;
+            border-radius: 0;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            background: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .toggle-sidebar-btn {
+            background: none;
+            border: 1px solid #e5e7eb;
+            padding: 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.2rem;
+        }
+
+        .toggle-sidebar-btn:hover {
+            background: #f3f4f6;
+            border-color: #6366f1;
+        }
+
+        .toggle-sidebar-btn.active {
+            background: #6366f1;
+            color: white;
+            border-color: #6366f1;
+        }
+
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .article-header {
+            padding: 2rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .article-featured-image {
+            width: 100%;
+            max-height: 400px;
+            object-fit: cover;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+
+        .article-meta-top {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .article-category {
+            font-size: 0.875rem;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        .article-views {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .article-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin: 0 0 1rem 0;
+            line-height: 1.2;
+        }
+
+        .article-meta {
+            display: flex;
+            gap: 1rem;
+            color: #6b7280;
+            font-size: 0.875rem;
+        }
+
+        .article-content {
+            padding: 2rem;
+            font-size: 1.1rem;
+            line-height: 1.7;
+            color: #374151;
+        }
+
+        .article-content h1,
+        .article-content h2,
+        .article-content h3 {
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: #1f2937;
+        }
+
+        .article-content h1 {
+            font-size: 2rem;
+        }
+
+        .article-content h2 {
+            font-size: 1.5rem;
+        }
+
+        .article-content h3 {
+            font-size: 1.25rem;
+        }
+
+        .article-content p {
+            margin-bottom: 1.5rem;
+        }
+
+        .article-content code {
+            background: #f3f4f6;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .article-content strong {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .comments-section {
+            padding: 2rem;
+            border-top: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+
+        .comments-section h3 {
+            margin-bottom: 1.5rem;
+            color: #1f2937;
+        }
+
+        .no-posts {
+            text-align: center;
+            color: #6b7280;
+            padding: 2rem;
+            font-style: italic;
+        }
+
+        /* Enhanced Card Image Styles */
+        .card-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .enhanced-blog-card:hover .card-image {
+            transform: scale(1.05);
+        }
+
+        .card-image-container {
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px 12px 0 0;
+            min-height: 200px;
+            background: #f3f4f6;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .article-sidebar {
+                position: absolute;
+                left: 0;
+                top: 0;
+                height: 100%;
+                z-index: 1002;
+                box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            }
+            
+            .article-sidebar.collapsed {
+                transform: translateX(-100%);
+            }
+            
+            .article-modal {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .article-sidebar {
+                width: 280px;
+            }
+            
+            .article-title {
+                font-size: 2rem;
+            }
+            
+            .article-header,
+            .article-content,
+            .comments-section {
+                padding: 1.5rem;
+            }
+            
+            .sidebar-post {
+                padding: 0.5rem;
+            }
+            
+            .sidebar-post-image {
+                width: 50px;
+                height: 38px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .article-sidebar {
+                width: 100%;
+            }
+            
+            .article-title {
+                font-size: 1.75rem;
+            }
+            
+            .article-header,
+            .article-content,
+            .comments-section {
+                padding: 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar" id="navbar">
@@ -82,24 +459,12 @@
             <a href="#" class="cta-button" onclick="requireLogin('blogs')">Get Started Now</a>
         </section>
     </main>
-    <!-- Article Modal -->
+    
+    <!-- FIXED: Enhanced Article Modal with Sidebar Support -->
     <div class="modal-overlay" id="articleModalOverlay" tabindex="-1" style="display:none;">
-        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="articleTitle">
-            <button class="close-btn" aria-label="Close" onclick="closeArticleModal()">×</button>
-            <h2 id="articleTitle"></h2>
-            <div class="article-meta">
-                <span id="articleDate"></span> • 
-                <span id="articleCategory"></span> • 
-                <span id="articleViews"></span>
-            </div>
-            <div class="article-content" id="articleContent"></div>
-            <div class="comments-section" id="commentsSection">
-                <h3>Comments</h3>
-                <div id="commentsList"></div>
-                <div id="commentInputBox"></div>
-            </div>
-        </div>
+        <!-- Modal content will be dynamically generated by JavaScript -->
     </div>
+    
     <!-- Enhanced Auth Modal -->
     <div class="modal-overlay" id="authModalOverlay" tabindex="-1" style="display:none;">
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
