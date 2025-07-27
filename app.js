@@ -204,8 +204,11 @@ async function showArticleModal(postId) {
         return;
     }
     
-    // Open modal with full content
-    openArticleModal(post.title, post.content, post.category, post.publish_date, post.views, post.image_url);
+    // Increment view count
+    await incrementViewCount(postId);
+    
+    // Open modal with full content and sidebar
+    openArticleModal(post.title, post.content, post.category, post.publish_date, post.views, post.image_url, postId);
     
     // Load comments and input
     await loadComments(postId);
@@ -258,8 +261,8 @@ function renderPosts() {
             excerpt = post.content ? post.content.substring(0, 150) + '...' : 'No preview available';
         }
         
-        // Get proper image URL from post data or use fallback
-        const imageUrl = post.image_url || post.featured_image || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=250&fit=crop';
+        // FIXED: Better image URL handling with multiple fallbacks
+        const imageUrl = getPostImageUrl(post);
         
         return `
             <div class="enhanced-blog-card" data-id="${post.id}">
@@ -267,7 +270,8 @@ function renderPosts() {
                     <img src="${imageUrl}" 
                          alt="${escapeHTML(post.title)}" 
                          class="card-image"
-                         onerror="this.src='https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=250&fit=crop'">
+                         loading="lazy"
+                         onerror="handleImageError(this, '${post.id}')">
                     <div class="category-badge" style="background: ${getCategoryColor(post.category)}">${post.category || 'General'}</div>
                     <div class="reading-time">📖 ${calculateReadingTime(post.content)} min</div>
                 </div>
@@ -305,6 +309,59 @@ function renderPosts() {
             </div>
         `;
     }).join('');
+}
+
+// NEW: Function to get proper image URL with fallbacks
+function getPostImageUrl(post) {
+    // Try multiple image fields
+    let imageUrl = post.image_url || post.featured_image || post.thumbnail_url || post.cover_image;
+    
+    // If no image URL found, generate a category-based placeholder
+    if (!imageUrl) {
+        imageUrl = getCategoryPlaceholderImage(post.category);
+    }
+    
+    return imageUrl;
+}
+
+// NEW: Category-based placeholder images
+function getCategoryPlaceholderImage(category) {
+    const placeholders = {
+        'JavaScript': 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=400&h=250&fit=crop',
+        'React': 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=250&fit=crop',
+        'Node.js': 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&h=250&fit=crop',
+        'CSS': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=250&fit=crop',
+        'HTML': 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=250&fit=crop',
+        'Tutorial': 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=400&h=250&fit=crop',
+        'Tips & Tricks': 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=250&fit=crop',
+        'General': 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=400&h=250&fit=crop'
+    };
+    return placeholders[category] || placeholders['General'];
+}
+
+// NEW: Handle image loading errors with fallbacks
+function handleImageError(img, postId) {
+    // Try different fallback strategies
+    const fallbacks = [
+        getCategoryPlaceholderImage('General'),
+        'https://via.placeholder.com/400x250/6c63ff/ffffff?text=Blog+Post',
+        'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjI1MCIgdmlld0JveD0iMCAwIDQwMCAyNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMjUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNzUgMTI1SDE4NVYxMzVIMTc1VjEyNVoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTE4NSAxMTVIMTk1VjEyNUgxODVWMTE1WiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K'
+    ];
+    
+    const currentSrc = img.src;
+    const currentIndex = fallbacks.indexOf(currentSrc);
+    
+    if (currentIndex < fallbacks.length - 1) {
+        img.src = fallbacks[currentIndex + 1];
+    } else {
+        // Last fallback - hide image container
+        img.style.display = 'none';
+        const container = img.closest('.card-image-container');
+        if (container) {
+            container.style.minHeight = '60px';
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:60px;background:#f3f4f6;color:#9ca3af;">No Image</div>';
+        }
+    }
 }
 
 // ======= SEARCH & FILTER =======
@@ -411,7 +468,12 @@ function renderCommentInput(post_id) {
             });
             if (error) {
                 console.error('Error adding comment:', error);
-                document.getElementById('commentError').textContent = error.message;
+                const errorMsg = error?.message || '';
+                if (errorMsg.includes('duplicate key') || errorMsg.includes('comments_post_id_key')) {
+                    document.getElementById('commentError').textContent = "You already have a comment on this post.";
+                } else {
+                    document.getElementById('commentError').textContent = errorMsg || "An error occurred";
+                }
             } else {
                 document.getElementById('commentContent').value = '';
                 showToast("Comment added!");
@@ -424,41 +486,68 @@ function renderCommentInput(post_id) {
     };
 }
 
-// FIXED: Enhanced function to open article modal with full content and image
-function openArticleModal(title, content, category, date, views, imageUrl) {
+// ENHANCED: Function to open article modal with sidebar
+function openArticleModal(title, content, category, date, views, imageUrl, postId) {
     // Prevent body scrolling
     document.body.classList.add('modal-open');
-        
-    // Set modal content
-    document.getElementById('articleTitle').textContent = title || 'Untitled';
-    document.getElementById('articleDate').textContent = formatDateSafe(date);
-    document.getElementById('articleCategory').textContent = category || 'General';
-    document.getElementById('articleViews').textContent = views ? `${views} views` : '0 views';
     
-    // Set featured image if exists
-    const articleImage = document.getElementById('articleImage');
-    if (articleImage) {
-        if (imageUrl) {
-            articleImage.src = imageUrl;
-            articleImage.style.display = 'block';
-            articleImage.onerror = function() {
-                this.style.display = 'none';
-            };
-        } else {
-            articleImage.style.display = 'none';
-        }
-    }
+    // Get the modal overlay
+    const modalOverlay = document.getElementById('articleModalOverlay');
     
-    // Format and set content - CRITICAL: ensure full content is displayed
-    const articleContent = document.getElementById('articleContent');
-    if (content && content.trim()) {
-        articleContent.innerHTML = formatArticleContent(content);
-    } else {
-        articleContent.innerHTML = '<p>Content not available.</p>';
-    }
+    // Create enhanced modal content with sidebar
+    modalOverlay.innerHTML = `
+        <div class="modal-container">
+            <!-- Article Sidebar -->
+            <div class="article-sidebar">
+                <div class="sidebar-header">
+                    <h3>Related Posts</h3>
+                    <button class="close-sidebar" onclick="toggleSidebar()" aria-label="Close sidebar">×</button>
+                </div>
+                <div class="sidebar-content">
+                    ${renderSidebarPosts(postId)}
+                </div>
+            </div>
+            
+            <!-- Main Article Modal -->
+            <div class="modal article-modal">
+                <div class="modal-header">
+                    <button class="toggle-sidebar-btn" onclick="toggleSidebar()" aria-label="Toggle sidebar">
+                        <span class="hamburger">☰</span>
+                    </button>
+                    <button class="close-modal" onclick="closeArticleModal()" aria-label="Close article">&times;</button>
+                </div>
+                
+                <div class="modal-body">
+                    <!-- Article Header -->
+                    <div class="article-header">
+                        ${imageUrl ? `<img id="articleImage" src="${imageUrl}" alt="${escapeHTML(title)}" class="article-featured-image" onerror="this.style.display='none'">` : ''}
+                        <div class="article-meta-top">
+                            <span class="article-category" style="background: ${getCategoryColor(category)}">${category || 'General'}</span>
+                            <span class="article-views">👁️ ${(views || 0) + 1} views</span>
+                        </div>
+                        <h1 id="articleTitle" class="article-title">${escapeHTML(title || 'Untitled')}</h1>
+                        <div class="article-meta">
+                            <span id="articleDate" class="article-date">${formatDateSafe(date)}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Article Content -->
+                    <div id="articleContent" class="article-content">
+                        ${formatArticleContent(content)}
+                    </div>
+                    
+                    <!-- Comments Section -->
+                    <div class="comments-section">
+                        <h3>Comments</h3>
+                        <div id="commentInputBox"></div>
+                        <div id="commentsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
     
     // Show modal
-    const modalOverlay = document.getElementById('articleModalOverlay');
     modalOverlay.style.display = 'block';
     modalOverlay.classList.add('active');
     
@@ -472,7 +561,48 @@ function openArticleModal(title, content, category, date, views, imageUrl) {
     console.log('Modal opened with content length:', content ? content.length : 0);
 }
 
-// FIXED: Enhanced content formatting function
+// NEW: Render sidebar posts
+function renderSidebarPosts(currentPostId) {
+    const otherPosts = posts.filter(post => post.id !== currentPostId).slice(0, 8);
+    
+    if (!otherPosts.length) {
+        return '<div class="no-posts">No other posts available</div>';
+    }
+    
+    return otherPosts.map(post => {
+        const imageUrl = getPostImageUrl(post);
+        return `
+            <div class="sidebar-post" onclick="requireLogin('readMore', ${post.id})" role="button" tabindex="0">
+                <img src="${imageUrl}" alt="${escapeHTML(post.title)}" class="sidebar-post-image" 
+                     onerror="handleImageError(this, '${post.id}')">
+                <div class="sidebar-post-content">
+                    <h4 class="sidebar-post-title">${escapeHTML(post.title)}</h4>
+                    <div class="sidebar-post-meta">
+                        <span class="sidebar-post-category">${post.category || 'General'}</span>
+                        <span class="sidebar-post-date">${formatDateSafe(post.publish_date)}</span>
+                    </div>
+                    <div class="sidebar-post-stats">
+                        <span>👁️ ${post.views || 0}</span>
+                        <span>💬 ${post.comment_count || 0}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// NEW: Toggle sidebar function
+function toggleSidebar() {
+    const sidebar = document.querySelector('.article-sidebar');
+    const toggleBtn = document.querySelector('.toggle-sidebar-btn');
+    
+    if (sidebar && toggleBtn) {
+        sidebar.classList.toggle('collapsed');
+        toggleBtn.classList.toggle('active');
+    }
+}
+
+// ENHANCED: Enhanced content formatting function
 function formatArticleContent(content) {
     if (!content || typeof content !== 'string') {
         return '<p>Content not available.</p>';
@@ -499,7 +629,7 @@ function formatArticleContent(content) {
     return formattedContent;
 }
 
-// FIXED: Enhanced close modal function
+// ENHANCED: Enhanced close modal function
 function closeArticleModal() {
     // Restore body scrolling
     document.body.classList.remove('modal-open');
@@ -516,15 +646,11 @@ function closeArticleModal() {
     
     // Clear content to prevent memory leaks
     setTimeout(() => {
-        document.getElementById('articleContent').innerHTML = '';
-        const articleImage = document.getElementById('articleImage');
-        if (articleImage) {
-            articleImage.style.display = 'none';
-        }
+        modalOverlay.innerHTML = '';
     }, 300);
 }
 
-// FIXED: Helper functions
+// ENHANCED: Helper functions
 function truncateText(text, maxLength) {
     if (!text) return '';
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
@@ -554,6 +680,11 @@ function getCategoryColor(category) {
 async function incrementViewCount(postId) {
     try {
         await supabase.rpc('increment_post_views', { post_id: postId });
+        // Update local posts array
+        const postIndex = posts.findIndex(p => p.id === postId);
+        if (postIndex !== -1) {
+            posts[postIndex].views = (posts[postIndex].views || 0) + 1;
+        }
     } catch (error) {
         console.log('View count increment failed:', error);
     }
@@ -658,9 +789,22 @@ function untrapFocus() {
     });
 }
 
+// Enhanced window click handler for modal closing
 window.onclick = function(e) {
     if (e.target.classList && e.target.classList.contains('modal-overlay')) {
         closeAuthModal();
         closeArticleModal();
     }
+    // Close modal when clicking outside the modal container
+    if (e.target.id === 'articleModalOverlay') {
+        closeArticleModal();
+    }
 };
+
+// NEW: Keyboard navigation for sidebar posts
+document.addEventListener('keydown', function(e) {
+    if (e.target.classList.contains('sidebar-post') && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        e.target.click();
+    }
+});
