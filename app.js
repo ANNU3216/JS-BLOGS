@@ -218,15 +218,65 @@ async function showArticleModal(postId) {
     focusTrap(document.getElementById('articleModalOverlay'));
 }
 
+// NEW: Check Supabase storage accessibility
+async function checkSupabaseStorageAccess() {
+    try {
+        // Try to list files in the blog-images bucket to test access
+        const { data, error } = await supabase.storage
+            .from('blog-images')
+            .list('', { limit: 1 });
+        
+        if (error) {
+            console.warn('Supabase storage access issue:', error.message);
+            
+            // Common solutions for storage issues
+            if (error.message.includes('not found')) {
+                console.log('Solution: Check if "blog-images" bucket exists in Supabase Storage');
+            } else if (error.message.includes('permission')) {
+                console.log('Solution: Check RLS policies for the blog-images bucket');
+            }
+            
+            return false;
+        }
+        
+        console.log('Supabase storage access: OK');
+        return true;
+    } catch (err) {
+        console.error('Error checking storage access:', err);
+        return false;
+    }
+}
+
+// NEW: Get public URL for Supabase storage files
+function getSupabasePublicUrl(bucketName, filePath) {
+    try {
+        const { data } = supabase.storage
+            .from(bucketName)
+            .getPublicUrl(filePath);
+        
+        return data.publicUrl;
+    } catch (error) {
+        console.error('Error getting public URL:', error);
+        return null;
+    }
+}
+
+// ENHANCED: Load posts with better image handling
 async function loadPosts() {
     try {
         document.getElementById('blogSpinner').style.display = 'block';
+        
+        // Check storage access first
+        await checkSupabaseStorageAccess();
+        
         const { data, error } = await supabase
             .from("blogs")
             .select("*")
             .eq("status", "published")
             .order("publish_date", { ascending: false });
+        
         document.getElementById('blogSpinner').style.display = 'none';
+        
         if (error) {
             console.error('Error loading posts:', error);
             document.getElementById('blogList').innerHTML = `<div class="error-message">Error loading posts: ${error.message}</div>`;
@@ -234,6 +284,22 @@ async function loadPosts() {
             filteredPosts = [];
         } else {
             posts = data || [];
+            
+            // Process and validate image URLs
+            posts = posts.map(post => {
+                if (post.image_url && post.image_url.includes('supabase.co')) {
+                    // Validate and fix Supabase URLs
+                    const validatedUrl = validateSupabaseImageUrl(post.image_url);
+                    if (validatedUrl) {
+                        post.image_url = validatedUrl;
+                    } else {
+                        console.warn(`Invalid image URL for post ${post.id}:`, post.image_url);
+                        post.image_url = getCategoryPlaceholderImage(post.category);
+                    }
+                }
+                return post;
+            });
+            
             filteredPosts = posts.slice();
             renderPosts();
         }
@@ -311,17 +377,56 @@ function renderPosts() {
     }).join('');
 }
 
-// NEW: Function to get proper image URL with fallbacks
+// ENHANCED: Function to get proper image URL with Supabase handling
 function getPostImageUrl(post) {
     // Try multiple image fields
     let imageUrl = post.image_url || post.featured_image || post.thumbnail_url || post.cover_image;
     
-    // If no image URL found, generate a category-based placeholder
+    // If we have a Supabase URL, validate and fix it
+    if (imageUrl && imageUrl.includes('supabase.co')) {
+        imageUrl = validateSupabaseImageUrl(imageUrl);
+    }
+    
+    // If no valid image URL found, generate a category-based placeholder
     if (!imageUrl) {
         imageUrl = getCategoryPlaceholderImage(post.category);
     }
     
     return imageUrl;
+}
+
+// NEW: Validate and fix Supabase image URLs
+function validateSupabaseImageUrl(url) {
+    try {
+        // Check if URL is properly formatted
+        const urlObj = new URL(url);
+        
+        // Ensure it's a valid Supabase storage URL
+        if (!urlObj.hostname.includes('supabase.co')) {
+            return null;
+        }
+        
+        // Fix common URL issues
+        let fixedUrl = url;
+        
+        // Ensure proper storage path format
+        if (!fixedUrl.includes('/storage/v1/object/public/')) {
+            // If it's missing the storage path, try to construct it
+            if (fixedUrl.includes('blog-images/')) {
+                const fileName = fixedUrl.split('blog-images/')[1];
+                fixedUrl = `${SUPABASE_URL}/storage/v1/object/public/blog-images/${fileName}`;
+            }
+        }
+        
+        // Add cache busting parameter to avoid caching issues
+        const separator = fixedUrl.includes('?') ? '&' : '?';
+        fixedUrl += `${separator}t=${Date.now()}`;
+        
+        return fixedUrl;
+    } catch (error) {
+        console.warn('Invalid image URL:', url, error);
+        return null;
+    }
 }
 
 // NEW: Category-based placeholder images
@@ -339,27 +444,55 @@ function getCategoryPlaceholderImage(category) {
     return placeholders[category] || placeholders['General'];
 }
 
-// NEW: Handle image loading errors with fallbacks
+// ENHANCED: Handle image loading errors with Supabase-specific fixes
 function handleImageError(img, postId) {
+    console.log('Image failed to load:', img.src);
+    
     // Try different fallback strategies
+    const originalSrc = img.getAttribute('data-original-src') || img.src;
+    
+    // Store original src if not already stored
+    if (!img.getAttribute('data-original-src')) {
+        img.setAttribute('data-original-src', originalSrc);
+    }
+    
     const fallbacks = [
+        // Try the original URL with different parameters
+        originalSrc.split('?')[0] + '?width=400&height=250&resize=cover',
+        // Try without cache busting
+        originalSrc.split('?')[0],
+        // Try category placeholder
         getCategoryPlaceholderImage('General'),
+        // Try generic placeholder
         'https://via.placeholder.com/400x250/6c63ff/ffffff?text=Blog+Post',
+        // Final SVG fallback
         'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjI1MCIgdmlld0JveD0iMCAwIDQwMCAyNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMjUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNzUgMTI1SDE4NVYxMzVIMTc1VjEyNVoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTE4NSAxMTVIMTk1VjEyNUgxODVWMTE1WiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K'
     ];
     
     const currentSrc = img.src;
-    const currentIndex = fallbacks.indexOf(currentSrc);
+    let currentIndex = -1;
     
+    // Find current fallback index
+    for (let i = 0; i < fallbacks.length; i++) {
+        if (currentSrc.includes(fallbacks[i]) || currentSrc === fallbacks[i]) {
+            currentIndex = i;
+            break;
+        }
+    }
+    
+    // Try next fallback
     if (currentIndex < fallbacks.length - 1) {
-        img.src = fallbacks[currentIndex + 1];
+        const nextIndex = currentIndex + 1;
+        console.log(`Trying fallback ${nextIndex + 1}:`, fallbacks[nextIndex]);
+        img.src = fallbacks[nextIndex];
     } else {
-        // Last fallback - hide image container
+        // Last fallback - hide image container and show placeholder
+        console.log('All fallbacks failed, hiding image');
         img.style.display = 'none';
         const container = img.closest('.card-image-container');
         if (container) {
             container.style.minHeight = '60px';
-            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:60px;background:#f3f4f6;color:#9ca3af;">No Image</div>';
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:60px;background:#f3f4f6;color:#9ca3af;font-size:0.875rem;">📷 Image unavailable</div>';
         }
     }
 }
