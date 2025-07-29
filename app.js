@@ -639,7 +639,7 @@ function renderCommentInput(post_id) {
                 showToast("Comment added!");
                 await loadComments(post_id);
             }
-        } .catch(error => {
+        } catch(error => {
     console.log('Full error details:', error);
     console.log('Error message:', error.message);
     console.log('Error status:', error.status);
