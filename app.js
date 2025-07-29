@@ -1,3 +1,4 @@
+// ======= CONFIG =======
 const SUPABASE_URL = 'https://bzrcawqsbahxjliqlndb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6cmNhd3FzYmFoeGpsaXFsbmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzMjI4OTgsImV4cCI6MjA2NTg5ODg5OH0._7zsMUy2-MsD6d2UUn31LguYCx6FZaB1ixGsiEyiYwU';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -638,13 +639,10 @@ function renderCommentInput(post_id) {
                 showToast("Comment added!");
                 await loadComments(post_id);
             }
-        } .catch(error => {
-    console.log('Full error details:', error);
-    console.log('Error message:', error.message);
-    console.log('Error status:', error.status);
-    console.log('Error code:', error.code);
-    if (error.details) console.log('Error details:', error.details);
-});
+        } catch (err) {
+            console.error('Unexpected error adding comment:', err);
+            document.getElementById('commentError').textContent = "An unexpected error occurred. Please try again.";
+        }
     };
 }
 
@@ -765,42 +763,15 @@ function toggleSidebar() {
 }
 
 // ENHANCED: Enhanced content formatting function
-// FIXED: Enhanced content formatting function with proper Marked.js integration
 function formatArticleContent(content) {
     if (!content || typeof content !== 'string') {
         return '<p>Content not available.</p>';
     }
 
     // Clean and format content
-    // Configure marked.js for proper image rendering
-    if (typeof marked !== 'undefined') {
-        marked.setOptions({
-            breaks: true,
-            gfm: true,
-            sanitize: false, // Important: Don't sanitize to allow images
-            headerIds: false,
-            mangle: false
-        });
-        
-        // Use marked.js to parse markdown content (including images)
-        try {
-            const parsedContent = marked.parse(content);
-            console.log('Marked.js parsed content:', parsedContent);
-            return parsedContent;
-        } catch (error) {
-            console.error('Marked.js parsing error:', error);
-            // Fallback to manual formatting
-        }
-    }
-    
-    // Fallback manual formatting if marked.js fails
     let formattedContent = content
         .replace(/\r\n/g, '\n')  // Normalize line endings
         .replace(/\n\s*\n\s*\n/g, '\n\n')  // Remove extra blank lines
-        
-        // FIXED: Proper image markdown parsing
-        .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;height:auto;margin:20px 0;border-radius:8px;" loading="lazy">')
-        
         .replace(/\n\n/g, '</p><p>')  // Convert double newlines to paragraphs
         .replace(/\n/g, '<br>')  // Convert single newlines to breaks
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Bold
@@ -812,7 +783,6 @@ function formatArticleContent(content) {
 
     // Wrap in paragraph tags if not already HTML
     if (!formattedContent.includes('<p>') && !formattedContent.includes('<div>')) {
-    if (!formattedContent.includes('<p>') && !formattedContent.includes('<div>') && !formattedContent.includes('<img>')) {
         formattedContent = '<p>' + formattedContent + '</p>';
     }
 
@@ -869,8 +839,9 @@ function getCategoryColor(category) {
 
 async function incrementViewCount(postId) {
     try {
+        await supabase.rpc('increment_post_views', { post_id: postId });
         const { data, error } = await supabase.rpc('increment_post_views', { post_id: postId });
-
+        
         if (error) {
             console.error('View count increment failed:', error);
             // Try alternative method - direct update
@@ -878,18 +849,19 @@ async function incrementViewCount(postId) {
                 .from('blogs')
                 .update({ views: supabase.sql`COALESCE(views, 0) + 1` })
                 .eq('id', postId);
-
+            
             if (updateError) {
                 console.error('Alternative view count update also failed:', updateError);
             }
         }
-
+        
         // Update local posts array
         const postIndex = posts.findIndex(p => p.id === postId);
         if (postIndex !== -1) {
             posts[postIndex].views = (posts[postIndex].views || 0) + 1;
         }
     } catch (error) {
+        console.log('View count increment failed:', error);
         console.error('Unexpected error incrementing view count:', error);
     }
 }
@@ -1056,16 +1028,4 @@ async function testImageHandling() {
 
 // Make function available in browser console
 window.testImageHandling = testImageHandling;
-    // Add this at the end of your app.js file for debugging
-console.log('Marked.js loaded:', typeof marked !== 'undefined');
-
-// Test markdown rendering
-const testMarkdown = '![test image](https://bzrcawqsbahxjliqlndb.supabase.co/storage/v1/object/public/blog-images/content_1753524951789_7w4pq1js.jpeg)';
-console.log('Markdown input:', testMarkdown);
-
-if (typeof marked !== 'undefined') {
-    console.log('Marked output:', marked.parse(testMarkdown));
-} else {
-    console.error('❌ Marked.js is not loaded!');
-}
 });
