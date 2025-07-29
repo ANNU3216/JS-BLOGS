@@ -508,19 +508,54 @@ function filterPosts() {
 // ======= COMMENTS LOGIC =======
 async function getUserProfiles(userIds) {
     if (!userIds.length) return {};
-    const { data, error } = await supabase
-        .from("profiles")
-        .select("user_id,display_name,avatar_url")
-        .in("user_id", userIds);
-    if (error) {
-        console.error('Error fetching user profiles:', error);
-        return {};
+    
+    try {
+        const { data, error } = await supabase
+            .from("profiles")
+            .select("user_id,display_name,avatar_url")
+            .in("user_id", userIds);
+        
+        if (error) {
+            console.error('Error fetching user profiles:', error);
+            // Return empty profiles object but don't fail completely
+            const fallbackProfiles = {};
+            userIds.forEach(userId => {
+                fallbackProfiles[userId] = {
+                    display_name: 'User',
+                    avatar_url: `https://ui-avatars.com/api/?name=User&background=4f46e5&color=fff`
+                };
+            });
+            return fallbackProfiles;
+        }
+        
+        const profiles = {};
+        data.forEach(profile => {
+            profiles[profile.user_id] = profile;
+        });
+        
+        // Add fallback for any missing profiles
+        userIds.forEach(userId => {
+            if (!profiles[userId]) {
+                profiles[userId] = {
+                    display_name: 'User',
+                    avatar_url: `https://ui-avatars.com/api/?name=User&background=4f46e5&color=fff`
+                };
+            }
+        });
+        
+        return profiles;
+    } catch (err) {
+        console.error('Unexpected error fetching profiles:', err);
+        // Return fallback profiles
+        const fallbackProfiles = {};
+        userIds.forEach(userId => {
+            fallbackProfiles[userId] = {
+                display_name: 'User',
+                avatar_url: `https://ui-avatars.com/api/?name=User&background=4f46e5&color=fff`
+            };
+        });
+        return fallbackProfiles;
     }
-    const profiles = {};
-    data.forEach(profile => {
-        profiles[profile.user_id] = profile;
-    });
-    return profiles;
 }
 
 async function loadComments(post_id) {
