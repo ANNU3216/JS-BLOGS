@@ -225,20 +225,20 @@ async function checkSupabaseStorageAccess() {
         const { data, error } = await supabase.storage
             .from('blog-images')
             .list('', { limit: 1 });
-
+        
         if (error) {
             console.warn('Supabase storage access issue:', error.message);
-
+            
             // Common solutions for storage issues
             if (error.message.includes('not found')) {
                 console.log('Solution: Check if "blog-images" bucket exists in Supabase Storage');
             } else if (error.message.includes('permission')) {
                 console.log('Solution: Check RLS policies for the blog-images bucket');
             }
-
+            
             return false;
         }
-
+        
         console.log('Supabase storage access: OK');
         return true;
     } catch (err) {
@@ -248,17 +248,12 @@ async function checkSupabaseStorageAccess() {
 }
 
 // NEW: Get public URL for Supabase storage files
-// FIXED: Get public URL for Supabase storage files
 function getSupabasePublicUrl(bucketName, filePath) {
     try {
-        // Remove any leading slash from filePath
-        const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
-        
         const { data } = supabase.storage
             .from(bucketName)
             .getPublicUrl(filePath);
-            .getPublicUrl(cleanPath);
-
+        
         return data.publicUrl;
     } catch (error) {
         console.error('Error getting public URL:', error);
@@ -270,18 +265,18 @@ function getSupabasePublicUrl(bucketName, filePath) {
 async function loadPosts() {
     try {
         document.getElementById('blogSpinner').style.display = 'block';
-
+        
         // Check storage access first
         await checkSupabaseStorageAccess();
-
+        
         const { data, error } = await supabase
             .from("blogs")
             .select("*")
             .eq("status", "published")
             .order("publish_date", { ascending: false });
-
+        
         document.getElementById('blogSpinner').style.display = 'none';
-
+        
         if (error) {
             console.error('Error loading posts:', error);
             document.getElementById('blogList').innerHTML = `<div class="error-message">Error loading posts: ${error.message}</div>`;
@@ -289,7 +284,7 @@ async function loadPosts() {
             filteredPosts = [];
         } else {
             posts = data || [];
-
+            
             // Process and validate image URLs
             posts = posts.map(post => {
                 if (post.image_url && post.image_url.includes('supabase.co')) {
@@ -304,7 +299,7 @@ async function loadPosts() {
                 }
                 return post;
             });
-
+            
             filteredPosts = posts.slice();
             renderPosts();
         }
@@ -382,12 +377,13 @@ function renderPosts() {
     }).join('');
 }
 
+// NEW: Function to get proper image URL with fallbacks
 // ENHANCED: Function to get proper image URL with Supabase handling
-// FIXED: Enhanced function to get proper image URL
 function getPostImageUrl(post) {
     // Try multiple image fields
     let imageUrl = post.image_url || post.featured_image || post.thumbnail_url || post.cover_image;
 
+    // If no image URL found, generate a category-based placeholder
     // If we have a Supabase URL, validate and fix it
     if (imageUrl && imageUrl.includes('supabase.co')) {
         imageUrl = validateSupabaseImageUrl(imageUrl);
@@ -396,48 +392,25 @@ function getPostImageUrl(post) {
     // If no valid image URL found, generate a category-based placeholder
     if (!imageUrl) {
         imageUrl = getCategoryPlaceholderImage(post.category);
-    // If we have a potential Supabase URL, validate and fix it
-    if (imageUrl) {
-        if (imageUrl.includes('supabase.co')) {
-            const validatedUrl = validateSupabaseImageUrl(imageUrl);
-            if (validatedUrl) {
-                return validatedUrl;
-            }
-        } else if (imageUrl.startsWith('http')) {
-            // External URL - return as is
-            return imageUrl;
-        } else {
-            // Assume it's a filename in our bucket
-            return getSupabasePublicUrl('blog-images', imageUrl);
-        }
     }
 
     return imageUrl;
-    // If no valid image URL found, use category placeholder
-    return getCategoryPlaceholderImage(post.category);
 }
 
 // NEW: Validate and fix Supabase image URLs
-// FIXED: Validate and fix Supabase image URLs
 function validateSupabaseImageUrl(url) {
     try {
         // Check if URL is properly formatted
-        // If it's already a valid URL, return it
         const urlObj = new URL(url);
-
+        
         // Ensure it's a valid Supabase storage URL
-        // Check if it's a Supabase URL
         if (!urlObj.hostname.includes('supabase.co')) {
             return null;
         }
-
+        
         // Fix common URL issues
         let fixedUrl = url;
-        // If it's already properly formatted, return it
-        if (url.includes('/storage/v1/object/public/blog-images/')) {
-            return url;
-        }
-
+        
         // Ensure proper storage path format
         if (!fixedUrl.includes('/storage/v1/object/public/')) {
             // If it's missing the storage path, try to construct it
@@ -445,26 +418,13 @@ function validateSupabaseImageUrl(url) {
                 const fileName = fixedUrl.split('blog-images/')[1];
                 fixedUrl = `${SUPABASE_URL}/storage/v1/object/public/blog-images/${fileName}`;
             }
-        // Try to extract filename and reconstruct URL
-        let filename = '';
-        if (url.includes('blog-images/')) {
-            filename = url.split('blog-images/')[1];
-        } else {
-            // Extract filename from path
-            const pathParts = urlObj.pathname.split('/');
-            filename = pathParts[pathParts.length - 1];
         }
-
+        
         // Add cache busting parameter to avoid caching issues
         const separator = fixedUrl.includes('?') ? '&' : '?';
         fixedUrl += `${separator}t=${Date.now()}`;
-        if (filename) {
-            // Use the getSupabasePublicUrl function to get proper URL
-            return getSupabasePublicUrl('blog-images', filename);
-        }
-
+        
         return fixedUrl;
-        return null;
     } catch (error) {
         console.warn('Invalid image URL:', url, error);
         return null;
@@ -486,12 +446,11 @@ function getCategoryPlaceholderImage(category) {
     return placeholders[category] || placeholders['General'];
 }
 
+// NEW: Handle image loading errors with fallbacks
 // ENHANCED: Handle image loading errors with Supabase-specific fixes
-// IMPROVED: Better image error handling
 function handleImageError(img, postId) {
     console.log('Image failed to load:', img.src);
-    console.log('Image failed to load for post:', postId, 'URL:', img.src);
-
+    
     // Try different fallback strategies
     const originalSrc = img.getAttribute('data-original-src') || img.src;
     
@@ -499,11 +458,7 @@ function handleImageError(img, postId) {
     if (!img.getAttribute('data-original-src')) {
         img.setAttribute('data-original-src', originalSrc);
     }
-    // Get the post to determine category
-    const post = posts.find(p => p.id == postId);
-    const category = post ? post.category : 'General';
-
-    // Try fallbacks in order
+    
     const fallbacks = [
         // Try the original URL with different parameters
         originalSrc.split('?')[0] + '?width=400&height=250&resize=cover',
@@ -512,15 +467,13 @@ function handleImageError(img, postId) {
         // Try category placeholder
         getCategoryPlaceholderImage('General'),
         // Try generic placeholder
-        getCategoryPlaceholderImage(category),
-        'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=400&h=250&fit=crop',
         'https://via.placeholder.com/400x250/6c63ff/ffffff?text=Blog+Post',
         // Final SVG fallback
         'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjI1MCIgdmlld0JveD0iMCAwIDQwMCAyNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMjUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNzUgMTI1SDE4NVYxMzVIMTc1VjEyNVoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTE4NSAxMTVIMTk1VjEyNUgxODVWMTE1WiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K'
-        'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjI1MCIgdmlld0JveD0iMCAwIDQwMCAyNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMjUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNzUgMTE1SDE4NVYxMjVIMTc1VjExNVoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTE4NSAxMDVIMTk1VjExNUgxODVWMTA1WiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K'
     ];
 
     const currentSrc = img.src;
+    const currentIndex = fallbacks.indexOf(currentSrc);
     let currentIndex = -1;
     
     // Find current fallback index
@@ -530,27 +483,23 @@ function handleImageError(img, postId) {
             break;
         }
     }
-    // Get current attempt number
-    const currentAttempt = parseInt(img.getAttribute('data-attempt') || '0');
 
     // Try next fallback
     if (currentIndex < fallbacks.length - 1) {
+        img.src = fallbacks[currentIndex + 1];
         const nextIndex = currentIndex + 1;
         console.log(`Trying fallback ${nextIndex + 1}:`, fallbacks[nextIndex]);
         img.src = fallbacks[nextIndex];
-    if (currentAttempt < fallbacks.length) {
-        img.setAttribute('data-attempt', (currentAttempt + 1).toString());
-        img.src = fallbacks[currentAttempt];
     } else {
+        // Last fallback - hide image container
         // Last fallback - hide image container and show placeholder
         console.log('All fallbacks failed, hiding image');
-        // All fallbacks failed - show placeholder
         img.style.display = 'none';
         const container = img.closest('.card-image-container');
         if (container) {
             container.style.minHeight = '60px';
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:60px;background:#f3f4f6;color:#9ca3af;">No Image</div>';
             container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:60px;background:#f3f4f6;color:#9ca3af;font-size:0.875rem;">📷 Image unavailable</div>';
-            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;background:#f3f4f6;color:#9ca3af;font-size:0.875rem;">📷 Image unavailable</div>';
         }
     }
 }
@@ -998,49 +947,4 @@ document.addEventListener('keydown', function(e) {
         e.preventDefault();
         e.target.click();
     }
-    // DEBUG: Test image URL generation
-async function testImageHandling() {
-    console.log('=== TESTING IMAGE HANDLING ===');
-    
-    // Test 1: Check storage access
-    console.log('1. Testing storage access...');
-    try {
-        const { data, error } = await supabase.storage
-            .from('blog-images')
-            .list('', { limit: 1 });
-        
-        if (error) {
-            console.error('❌ Storage access failed:', error.message);
-            if (error.message.includes('not found')) {
-                console.log('💡 Solution: Create "blog-images" bucket in Supabase Storage');
-            }
-            return;
-        } else {
-            console.log('✅ Storage access successful');
-        }
-    } catch (err) {
-        console.error('❌ Storage connection failed:', err);
-        return;
-    }
-    
-    // Test 2: Test URL generation
-    console.log('2. Testing URL generation...');
-    const testFilename = 'test-image.jpg';
-    const publicUrl = getSupabasePublicUrl('blog-images', testFilename);
-    console.log('Generated URL:', publicUrl);
-    
-    // Test 3: Check current posts
-    console.log('3. Checking current posts images...');
-    posts.forEach((post, index) => {
-        console.log(`Post ${index + 1}: "${post.title}"`);
-        console.log(`  Original URL: ${post.image_url || 'None'}`);
-        console.log(`  Processed URL: ${getPostImageUrl(post)}`);
-        console.log('---');
-    });
-    
-    console.log('=== TEST COMPLETE ===');
-}
-
-// Make function available in browser console
-window.testImageHandling = testImageHandling;
 });
