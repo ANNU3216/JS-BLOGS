@@ -766,41 +766,15 @@ function toggleSidebar() {
 }
 
 // ENHANCED: Enhanced content formatting function
-// FIXED: Enhanced content formatting function with proper Marked.js integration
 function formatArticleContent(content) {
     if (!content || typeof content !== 'string') {
         return '<p>Content not available.</p>';
     }
     
-    // Configure marked.js for proper image rendering
-    if (typeof marked !== 'undefined') {
-        marked.setOptions({
-            breaks: true,
-            gfm: true,
-            sanitize: false, // Important: Don't sanitize to allow images
-            headerIds: false,
-            mangle: false
-        });
-        
-        // Use marked.js to parse markdown content (including images)
-        try {
-            const parsedContent = marked.parse(content);
-            console.log('Marked.js parsed content:', parsedContent);
-            return parsedContent;
-        } catch (error) {
-            console.error('Marked.js parsing error:', error);
-            // Fallback to manual formatting
-        }
-    }
-    
-    // Fallback manual formatting if marked.js fails
+    // Clean and format content
     let formattedContent = content
         .replace(/\r\n/g, '\n')  // Normalize line endings
         .replace(/\n\s*\n\s*\n/g, '\n\n')  // Remove extra blank lines
-        
-        // FIXED: Proper image markdown parsing
-        .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;height:auto;margin:20px 0;border-radius:8px;" loading="lazy">')
-        
         .replace(/\n\n/g, '</p><p>')  // Convert double newlines to paragraphs
         .replace(/\n/g, '<br>')  // Convert single newlines to breaks
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Bold
@@ -811,7 +785,7 @@ function formatArticleContent(content) {
         .replace(/#{1}\s*(.*?)$/gm, '<h1>$1</h1>'); // H1 headers
     
     // Wrap in paragraph tags if not already HTML
-    if (!formattedContent.includes('<p>') && !formattedContent.includes('<div>') && !formattedContent.includes('<img>')) {
+    if (!formattedContent.includes('<p>') && !formattedContent.includes('<div>')) {
         formattedContent = '<p>' + formattedContent + '</p>';
     }
     
@@ -1055,16 +1029,4 @@ async function testImageHandling() {
 
 // Make function available in browser console
 window.testImageHandling = testImageHandling;
-    // Add this at the end of your app.js file for debugging
-console.log('Marked.js loaded:', typeof marked !== 'undefined');
-
-// Test markdown rendering
-const testMarkdown = '![test image](https://bzrcawqsbahxjliqlndb.supabase.co/storage/v1/object/public/blog-images/content_1753524951789_7w4pq1js.jpeg)';
-console.log('Markdown input:', testMarkdown);
-
-if (typeof marked !== 'undefined') {
-    console.log('Marked output:', marked.parse(testMarkdown));
-} else {
-    console.error('❌ Marked.js is not loaded!');
-}
 });
