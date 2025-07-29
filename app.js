@@ -203,71 +203,25 @@ async function showArticleModal(postId) {
         console.error('Post not found:', postId);
         return;
     }
-
+    
     // Increment view count
     await incrementViewCount(postId);
-
+    
     // Open modal with full content and sidebar
     openArticleModal(post.title, post.content, post.category, post.publish_date, post.views, post.image_url, postId);
-
+    
     // Load comments and input
     await loadComments(postId);
     renderCommentInput(postId);
-
+    
     // Focus trap for accessibility
     focusTrap(document.getElementById('articleModalOverlay'));
-}
-
-// NEW: Check Supabase storage accessibility
-async function checkSupabaseStorageAccess() {
-    try {
-        // Try to list files in the blog-images bucket to test access
-        const { data, error } = await supabase.storage
-            .from('blog-images')
-            .list('', { limit: 1 });
-        
-        if (error) {
-            console.warn('Supabase storage access issue:', error.message);
-            
-            // Common solutions for storage issues
-            if (error.message.includes('not found')) {
-                console.log('Solution: Check if "blog-images" bucket exists in Supabase Storage');
-            } else if (error.message.includes('permission')) {
-                console.log('Solution: Check RLS policies for the blog-images bucket');
-            }
-            
-            return false;
-        }
-        
-        console.log('Supabase storage access: OK');
-        return true;
-    } catch (err) {
-        console.error('Error checking storage access:', err);
-        return false;
-    }
-}
-
-// NEW: Get public URL for Supabase storage files
-function getSupabasePublicUrl(bucketName, filePath) {
-    try {
-        const { data } = supabase.storage
-            .from(bucketName)
-            .getPublicUrl(filePath);
-        
-        return data.publicUrl;
-    } catch (error) {
-        console.error('Error getting public URL:', error);
-        return null;
-    }
 }
 
 // ENHANCED: Load posts with better image handling
 async function loadPosts() {
     try {
         document.getElementById('blogSpinner').style.display = 'block';
-        
-        // Check storage access first
-        await checkSupabaseStorageAccess();
         
         const { data, error } = await supabase
             .from("blogs")
@@ -284,22 +238,6 @@ async function loadPosts() {
             filteredPosts = [];
         } else {
             posts = data || [];
-            
-            // Process and validate image URLs
-            posts = posts.map(post => {
-                if (post.image_url && post.image_url.includes('supabase.co')) {
-                    // Validate and fix Supabase URLs
-                    const validatedUrl = validateSupabaseImageUrl(post.image_url);
-                    if (validatedUrl) {
-                        post.image_url = validatedUrl;
-                    } else {
-                        console.warn(`Invalid image URL for post ${post.id}:`, post.image_url);
-                        post.image_url = getCategoryPlaceholderImage(post.category);
-                    }
-                }
-                return post;
-            });
-            
             filteredPosts = posts.slice();
             renderPosts();
         }
@@ -310,7 +248,7 @@ async function loadPosts() {
     }
 }
 
-// FIXED: Enhanced renderPosts function with proper image handling
+// FIXED: Simplified renderPosts function
 function renderPosts() {
     const blogList = document.getElementById('blogList');
     if (!filteredPosts.length) {
@@ -320,16 +258,16 @@ function renderPosts() {
         </div>`;
         return;
     }
-
+    
     blogList.innerHTML = filteredPosts.map(post => {
         let excerpt = post.excerpt;
         if (!excerpt || excerpt === 'null') {
             excerpt = post.content ? post.content.substring(0, 150) + '...' : 'No preview available';
         }
-
-        // FIXED: Better image URL handling with multiple fallbacks
+        
+        // FIXED: Simplified image URL handling
         const imageUrl = getPostImageUrl(post);
-
+        
         return `
             <div class="enhanced-blog-card" data-id="${post.id}">
                 <div class="card-image-container">
@@ -337,7 +275,7 @@ function renderPosts() {
                          alt="${escapeHTML(post.title)}" 
                          class="card-image"
                          loading="lazy"
-                         onerror="handleImageError(this, '${post.id}')">
+                         onerror="this.onerror=null; this.src='${getCategoryPlaceholderImage(post.category)}';">
                     <div class="category-badge" style="background: ${getCategoryColor(post.category)}">${post.category || 'General'}</div>
                     <div class="reading-time">📖 ${calculateReadingTime(post.content)} min</div>
                 </div>
@@ -377,131 +315,33 @@ function renderPosts() {
     }).join('');
 }
 
-// NEW: Function to get proper image URL with fallbacks
-// ENHANCED: Function to get proper image URL with Supabase handling
+// FIXED: Simplified function to get proper image URL
 function getPostImageUrl(post) {
     // Try multiple image fields
     let imageUrl = post.image_url || post.featured_image || post.thumbnail_url || post.cover_image;
-
-    // If no image URL found, generate a category-based placeholder
-    // If we have a Supabase URL, validate and fix it
-    if (imageUrl && imageUrl.includes('supabase.co')) {
-        imageUrl = validateSupabaseImageUrl(imageUrl);
+    
+    // If we have a URL, use it; otherwise use placeholder
+    if (imageUrl && imageUrl.trim() && imageUrl !== 'null') {
+        return imageUrl;
     }
     
-    // If no valid image URL found, generate a category-based placeholder
-    if (!imageUrl) {
-        imageUrl = getCategoryPlaceholderImage(post.category);
-    }
-
-    return imageUrl;
+    // Return category-based placeholder
+    return getCategoryPlaceholderImage(post.category);
 }
 
-// NEW: Validate and fix Supabase image URLs
-function validateSupabaseImageUrl(url) {
-    try {
-        // Check if URL is properly formatted
-        const urlObj = new URL(url);
-        
-        // Ensure it's a valid Supabase storage URL
-        if (!urlObj.hostname.includes('supabase.co')) {
-            return null;
-        }
-        
-        // Fix common URL issues
-        let fixedUrl = url;
-        
-        // Ensure proper storage path format
-        if (!fixedUrl.includes('/storage/v1/object/public/')) {
-            // If it's missing the storage path, try to construct it
-            if (fixedUrl.includes('blog-images/')) {
-                const fileName = fixedUrl.split('blog-images/')[1];
-                fixedUrl = `${SUPABASE_URL}/storage/v1/object/public/blog-images/${fileName}`;
-            }
-        }
-        
-        // Add cache busting parameter to avoid caching issues
-        const separator = fixedUrl.includes('?') ? '&' : '?';
-        fixedUrl += `${separator}t=${Date.now()}`;
-        
-        return fixedUrl;
-    } catch (error) {
-        console.warn('Invalid image URL:', url, error);
-        return null;
-    }
-}
-
-// NEW: Category-based placeholder images
+// FIXED: Category-based placeholder images
 function getCategoryPlaceholderImage(category) {
     const placeholders = {
-        'JavaScript': 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=400&h=250&fit=crop',
-        'React': 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=250&fit=crop',
-        'Node.js': 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&h=250&fit=crop',
-        'CSS': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=250&fit=crop',
-        'HTML': 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=250&fit=crop',
-        'Tutorial': 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=400&h=250&fit=crop',
-        'Tips & Tricks': 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=250&fit=crop',
-        'General': 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=400&h=250&fit=crop'
+        'JavaScript': 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=400&h=250&fit=crop&auto=format',
+        'React': 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=250&fit=crop&auto=format',
+        'Node.js': 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&h=250&fit=crop&auto=format',
+        'CSS': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=250&fit=crop&auto=format',
+        'HTML': 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=250&fit=crop&auto=format',
+        'Tutorial': 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=400&h=250&fit=crop&auto=format',
+        'Tips & Tricks': 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=250&fit=crop&auto=format',
+        'General': 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=400&h=250&fit=crop&auto=format'
     };
     return placeholders[category] || placeholders['General'];
-}
-
-// NEW: Handle image loading errors with fallbacks
-// ENHANCED: Handle image loading errors with Supabase-specific fixes
-function handleImageError(img, postId) {
-    console.log('Image failed to load:', img.src);
-    
-    // Try different fallback strategies
-    const originalSrc = img.getAttribute('data-original-src') || img.src;
-    
-    // Store original src if not already stored
-    if (!img.getAttribute('data-original-src')) {
-        img.setAttribute('data-original-src', originalSrc);
-    }
-    
-    const fallbacks = [
-        // Try the original URL with different parameters
-        originalSrc.split('?')[0] + '?width=400&height=250&resize=cover',
-        // Try without cache busting
-        originalSrc.split('?')[0],
-        // Try category placeholder
-        getCategoryPlaceholderImage('General'),
-        // Try generic placeholder
-        'https://via.placeholder.com/400x250/6c63ff/ffffff?text=Blog+Post',
-        // Final SVG fallback
-        'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjI1MCIgdmlld0JveD0iMCAwIDQwMCAyNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMjUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNzUgMTI1SDE4NVYxMzVIMTc1VjEyNVoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTE4NSAxMTVIMTk1VjEyNUgxODVWMTE1WiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K'
-    ];
-
-    const currentSrc = img.src;
-    const currentIndex = fallbacks.indexOf(currentSrc);
-    let currentIndex = -1;
-    
-    // Find current fallback index
-    for (let i = 0; i < fallbacks.length; i++) {
-        if (currentSrc.includes(fallbacks[i]) || currentSrc === fallbacks[i]) {
-            currentIndex = i;
-            break;
-        }
-    }
-
-    // Try next fallback
-    if (currentIndex < fallbacks.length - 1) {
-        img.src = fallbacks[currentIndex + 1];
-        const nextIndex = currentIndex + 1;
-        console.log(`Trying fallback ${nextIndex + 1}:`, fallbacks[nextIndex]);
-        img.src = fallbacks[nextIndex];
-    } else {
-        // Last fallback - hide image container
-        // Last fallback - hide image container and show placeholder
-        console.log('All fallbacks failed, hiding image');
-        img.style.display = 'none';
-        const container = img.closest('.card-image-container');
-        if (container) {
-            container.style.minHeight = '60px';
-            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:60px;background:#f3f4f6;color:#9ca3af;">No Image</div>';
-            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:60px;background:#f3f4f6;color:#9ca3af;font-size:0.875rem;">📷 Image unavailable</div>';
-        }
-    }
 }
 
 // ======= SEARCH & FILTER =======
@@ -626,120 +466,62 @@ function renderCommentInput(post_id) {
     };
 }
 
-// ENHANCED: Function to open article modal with sidebar
+// FIXED: Simple modal opening function
 function openArticleModal(title, content, category, date, views, imageUrl, postId) {
     // Prevent body scrolling
     document.body.classList.add('modal-open');
-
-    // Get the modal overlay
+    
+    // Clear existing modal content first
     const modalOverlay = document.getElementById('articleModalOverlay');
-
-    // Create enhanced modal content with sidebar
+    
+    // Create simple modal content without sidebar for better mobile support
     modalOverlay.innerHTML = `
-        <div class="modal-container">
-            <!-- Article Sidebar -->
-            <div class="article-sidebar">
-                <div class="sidebar-header">
-                    <h3>Related Posts</h3>
-                    <button class="close-sidebar" onclick="toggleSidebar()" aria-label="Close sidebar">×</button>
-                </div>
-                <div class="sidebar-content">
-                    ${renderSidebarPosts(postId)}
-                </div>
+        <div class="modal article-modal-simple">
+            <div class="modal-header">
+                <button class="close-btn" onclick="closeArticleModal()" aria-label="Close article">&times;</button>
             </div>
             
-            <!-- Main Article Modal -->
-            <div class="modal article-modal">
-                <div class="modal-header">
-                    <button class="toggle-sidebar-btn" onclick="toggleSidebar()" aria-label="Toggle sidebar">
-                        <span class="hamburger">☰</span>
-                    </button>
-                    <button class="close-modal" onclick="closeArticleModal()" aria-label="Close article">&times;</button>
+            <div class="modal-body">
+                <!-- Article Header -->
+                <div class="article-header">
+                    ${imageUrl && imageUrl !== 'null' ? `<img id="articleImage" src="${imageUrl}" alt="${escapeHTML(title)}" class="article-featured-image" onerror="this.style.display='none'">` : ''}
+                    <div class="article-meta-top">
+                        <span class="article-category" style="background: ${getCategoryColor(category)}">${category || 'General'}</span>
+                        <span class="article-views">👁️ ${(views || 0) + 1} views</span>
+                    </div>
+                    <h1 id="articleTitle" class="article-title">${escapeHTML(title || 'Untitled')}</h1>
+                    <div class="article-meta">
+                        <span id="articleDate" class="article-date">${formatDateSafe(date)}</span>
+                    </div>
                 </div>
                 
-                <div class="modal-body">
-                    <!-- Article Header -->
-                    <div class="article-header">
-                        ${imageUrl ? `<img id="articleImage" src="${imageUrl}" alt="${escapeHTML(title)}" class="article-featured-image" onerror="this.style.display='none'">` : ''}
-                        <div class="article-meta-top">
-                            <span class="article-category" style="background: ${getCategoryColor(category)}">${category || 'General'}</span>
-                            <span class="article-views">👁️ ${(views || 0) + 1} views</span>
-                        </div>
-                        <h1 id="articleTitle" class="article-title">${escapeHTML(title || 'Untitled')}</h1>
-                        <div class="article-meta">
-                            <span id="articleDate" class="article-date">${formatDateSafe(date)}</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Article Content -->
-                    <div id="articleContent" class="article-content">
-                        ${formatArticleContent(content)}
-                    </div>
-                    
-                    <!-- Comments Section -->
-                    <div class="comments-section">
-                        <h3>Comments</h3>
-                        <div id="commentInputBox"></div>
-                        <div id="commentsList"></div>
-                    </div>
+                <!-- Article Content -->
+                <div id="articleContent" class="article-content">
+                    ${formatArticleContent(content)}
+                </div>
+                
+                <!-- Comments Section -->
+                <div class="comments-section">
+                    <h3>Comments</h3>
+                    <div id="commentInputBox"></div>
+                    <div id="commentsList"></div>
                 </div>
             </div>
         </div>
     `;
-
+    
     // Show modal
-    modalOverlay.style.display = 'block';
+    modalOverlay.style.display = 'flex';
     modalOverlay.classList.add('active');
-
+    
     // Scroll modal to top
     setTimeout(() => {
         modalOverlay.scrollTop = 0;
         const modal = modalOverlay.querySelector('.modal');
         if (modal) modal.scrollTop = 0;
     }, 100);
-
+    
     console.log('Modal opened with content length:', content ? content.length : 0);
-}
-
-// NEW: Render sidebar posts
-function renderSidebarPosts(currentPostId) {
-    const otherPosts = posts.filter(post => post.id !== currentPostId).slice(0, 8);
-
-    if (!otherPosts.length) {
-        return '<div class="no-posts">No other posts available</div>';
-    }
-
-    return otherPosts.map(post => {
-        const imageUrl = getPostImageUrl(post);
-        return `
-            <div class="sidebar-post" onclick="requireLogin('readMore', ${post.id})" role="button" tabindex="0">
-                <img src="${imageUrl}" alt="${escapeHTML(post.title)}" class="sidebar-post-image" 
-                     onerror="handleImageError(this, '${post.id}')">
-                <div class="sidebar-post-content">
-                    <h4 class="sidebar-post-title">${escapeHTML(post.title)}</h4>
-                    <div class="sidebar-post-meta">
-                        <span class="sidebar-post-category">${post.category || 'General'}</span>
-                        <span class="sidebar-post-date">${formatDateSafe(post.publish_date)}</span>
-                    </div>
-                    <div class="sidebar-post-stats">
-                        <span>👁️ ${post.views || 0}</span>
-                        <span>💬 ${post.comment_count || 0}</span>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-// NEW: Toggle sidebar function
-function toggleSidebar() {
-    const sidebar = document.querySelector('.article-sidebar');
-    const toggleBtn = document.querySelector('.toggle-sidebar-btn');
-
-    if (sidebar && toggleBtn) {
-        sidebar.classList.toggle('collapsed');
-        toggleBtn.classList.toggle('active');
-    }
 }
 
 // ENHANCED: Enhanced content formatting function
@@ -747,7 +529,7 @@ function formatArticleContent(content) {
     if (!content || typeof content !== 'string') {
         return '<p>Content not available.</p>';
     }
-
+    
     // Clean and format content
     let formattedContent = content
         .replace(/\r\n/g, '\n')  // Normalize line endings
@@ -760,33 +542,52 @@ function formatArticleContent(content) {
         .replace(/#{3}\s*(.*?)$/gm, '<h3>$1</h3>')  // H3 headers
         .replace(/#{2}\s*(.*?)$/gm, '<h2>$1</h2>')  // H2 headers
         .replace(/#{1}\s*(.*?)$/gm, '<h1>$1</h1>'); // H1 headers
-
+    
     // Wrap in paragraph tags if not already HTML
     if (!formattedContent.includes('<p>') && !formattedContent.includes('<div>')) {
         formattedContent = '<p>' + formattedContent + '</p>';
     }
-
+    
     return formattedContent;
 }
 
-// ENHANCED: Enhanced close modal function
+// FIXED: Enhanced close modal function
 function closeArticleModal() {
     // Restore body scrolling
     document.body.classList.remove('modal-open');
-
+    
     // Hide modal
     const modalOverlay = document.getElementById('articleModalOverlay');
     modalOverlay.style.display = 'none';
     modalOverlay.classList.remove('active');
-
+    
+    // Remove focus trap
+    untrapFocus();
+    
     // Clear URL
     if (window.history.pushState) {
         window.history.pushState({}, '', window.location.pathname);
     }
-
+    
     // Clear content to prevent memory leaks
     setTimeout(() => {
-        modalOverlay.innerHTML = '';
+        modalOverlay.innerHTML = `
+            <div class="modal" role="dialog" aria-modal="true" aria-labelledby="articleTitle">
+                <button class="close-btn" aria-label="Close" onclick="closeArticleModal()">×</button>
+                <h2 id="articleTitle"></h2>
+                <div class="article-meta">
+                    <span id="articleDate"></span> • 
+                    <span id="articleCategory"></span> • 
+                    <span id="articleViews"></span>
+                </div>
+                <div class="article-content" id="articleContent"></div>
+                <div class="comments-section" id="commentsSection">
+                    <h3>Comments</h3>
+                    <div id="commentsList"></div>
+                    <div id="commentInputBox"></div>
+                </div>
+            </div>
+        `;
     }, 300);
 }
 
@@ -940,11 +741,3 @@ window.onclick = function(e) {
         closeArticleModal();
     }
 };
-
-// NEW: Keyboard navigation for sidebar posts
-document.addEventListener('keydown', function(e) {
-    if (e.target.classList.contains('sidebar-post') && (e.key === 'Enter' || e.key === ' ')) {
-        e.preventDefault();
-        e.target.click();
-    }
-});
