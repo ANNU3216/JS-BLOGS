@@ -839,14 +839,28 @@ function getCategoryColor(category) {
 
 async function incrementViewCount(postId) {
     try {
-        await supabase.rpc('increment_post_views', { post_id: postId });
+        const { data, error } = await supabase.rpc('increment_post_views', { post_id: postId });
+        
+        if (error) {
+            console.error('View count increment failed:', error);
+            // Try alternative method - direct update
+            const { error: updateError } = await supabase
+                .from('blogs')
+                .update({ views: supabase.sql`COALESCE(views, 0) + 1` })
+                .eq('id', postId);
+            
+            if (updateError) {
+                console.error('Alternative view count update also failed:', updateError);
+            }
+        }
+        
         // Update local posts array
         const postIndex = posts.findIndex(p => p.id === postId);
         if (postIndex !== -1) {
             posts[postIndex].views = (posts[postIndex].views || 0) + 1;
         }
     } catch (error) {
-        console.log('View count increment failed:', error);
+        console.error('Unexpected error incrementing view count:', error);
     }
 }
 
