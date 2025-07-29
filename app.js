@@ -1,4 +1,3 @@
-// ======= CONFIG =======
 const SUPABASE_URL = 'https://bzrcawqsbahxjliqlndb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6cmNhd3FzYmFoeGpsaXFsbmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzMjI4OTgsImV4cCI6MjA2NTg5ODg5OH0._7zsMUy2-MsD6d2UUn31LguYCx6FZaB1ixGsiEyiYwU';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -203,17 +202,17 @@ async function showArticleModal(postId) {
         console.error('Post not found:', postId);
         return;
     }
-    
+
     // Increment view count
     await incrementViewCount(postId);
-    
+
     // Open modal with full content and sidebar
     openArticleModal(post.title, post.content, post.category, post.publish_date, post.views, post.image_url, postId);
-    
+
     // Load comments and input
     await loadComments(postId);
     renderCommentInput(postId);
-    
+
     // Focus trap for accessibility
     focusTrap(document.getElementById('articleModalOverlay'));
 }
@@ -225,20 +224,20 @@ async function checkSupabaseStorageAccess() {
         const { data, error } = await supabase.storage
             .from('blog-images')
             .list('', { limit: 1 });
-        
+
         if (error) {
             console.warn('Supabase storage access issue:', error.message);
-            
+
             // Common solutions for storage issues
             if (error.message.includes('not found')) {
                 console.log('Solution: Check if "blog-images" bucket exists in Supabase Storage');
             } else if (error.message.includes('permission')) {
                 console.log('Solution: Check RLS policies for the blog-images bucket');
             }
-            
+
             return false;
         }
-        
+
         console.log('Supabase storage access: OK');
         return true;
     } catch (err) {
@@ -252,11 +251,11 @@ function getSupabasePublicUrl(bucketName, filePath) {
     try {
         // Remove any leading slash from filePath
         const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
-        
+
         const { data } = supabase.storage
             .from(bucketName)
             .getPublicUrl(cleanPath);
-        
+
         return data.publicUrl;
     } catch (error) {
         console.error('Error getting public URL:', error);
@@ -267,18 +266,18 @@ function getSupabasePublicUrl(bucketName, filePath) {
 async function loadPosts() {
     try {
         document.getElementById('blogSpinner').style.display = 'block';
-        
+
         // Check storage access first
         await checkSupabaseStorageAccess();
-        
+
         const { data, error } = await supabase
             .from("blogs")
             .select("*")
             .eq("status", "published")
             .order("publish_date", { ascending: false });
-        
+
         document.getElementById('blogSpinner').style.display = 'none';
-        
+
         if (error) {
             console.error('Error loading posts:', error);
             document.getElementById('blogList').innerHTML = `<div class="error-message">Error loading posts: ${error.message}</div>`;
@@ -286,7 +285,7 @@ async function loadPosts() {
             filteredPosts = [];
         } else {
             posts = data || [];
-            
+
             // Process and validate image URLs
             posts = posts.map(post => {
                 if (post.image_url && post.image_url.includes('supabase.co')) {
@@ -301,7 +300,7 @@ async function loadPosts() {
                 }
                 return post;
             });
-            
+
             filteredPosts = posts.slice();
             renderPosts();
         }
@@ -322,16 +321,16 @@ function renderPosts() {
         </div>`;
         return;
     }
-    
+
     blogList.innerHTML = filteredPosts.map(post => {
         let excerpt = post.excerpt;
         if (!excerpt || excerpt === 'null') {
             excerpt = post.content ? post.content.substring(0, 150) + '...' : 'No preview available';
         }
-        
+
         // FIXED: Better image URL handling with multiple fallbacks
         const imageUrl = getPostImageUrl(post);
-        
+
         return `
             <div class="enhanced-blog-card" data-id="${post.id}">
                 <div class="card-image-container">
@@ -383,7 +382,7 @@ function renderPosts() {
 function getPostImageUrl(post) {
     // Try multiple image fields
     let imageUrl = post.image_url || post.featured_image || post.thumbnail_url || post.cover_image;
-    
+
     // If we have a potential Supabase URL, validate and fix it
     if (imageUrl) {
         if (imageUrl.includes('supabase.co')) {
@@ -399,7 +398,7 @@ function getPostImageUrl(post) {
             return getSupabasePublicUrl('blog-images', imageUrl);
         }
     }
-    
+
     // If no valid image URL found, use category placeholder
     return getCategoryPlaceholderImage(post.category);
 }
@@ -409,17 +408,17 @@ function validateSupabaseImageUrl(url) {
     try {
         // If it's already a valid URL, return it
         const urlObj = new URL(url);
-        
+
         // Check if it's a Supabase URL
         if (!urlObj.hostname.includes('supabase.co')) {
             return null;
         }
-        
+
         // If it's already properly formatted, return it
         if (url.includes('/storage/v1/object/public/blog-images/')) {
             return url;
         }
-        
+
         // Try to extract filename and reconstruct URL
         let filename = '';
         if (url.includes('blog-images/')) {
@@ -429,12 +428,12 @@ function validateSupabaseImageUrl(url) {
             const pathParts = urlObj.pathname.split('/');
             filename = pathParts[pathParts.length - 1];
         }
-        
+
         if (filename) {
             // Use the getSupabasePublicUrl function to get proper URL
             return getSupabasePublicUrl('blog-images', filename);
         }
-        
+
         return null;
     } catch (error) {
         console.warn('Invalid image URL:', url, error);
@@ -460,11 +459,11 @@ function getCategoryPlaceholderImage(category) {
 // IMPROVED: Better image error handling
 function handleImageError(img, postId) {
     console.log('Image failed to load for post:', postId, 'URL:', img.src);
-    
+
     // Get the post to determine category
     const post = posts.find(p => p.id == postId);
     const category = post ? post.category : 'General';
-    
+
     // Try fallbacks in order
     const fallbacks = [
         getCategoryPlaceholderImage(category),
@@ -472,10 +471,10 @@ function handleImageError(img, postId) {
         'https://via.placeholder.com/400x250/6c63ff/ffffff?text=Blog+Post',
         'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjI1MCIgdmlld0JveD0iMCAwIDQwMCAyNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMjUwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNzUgMTE1SDE4NVYxMjVIMTc1VjExNVoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTE4NSAxMDVIMTk1VjExNUgxODVWMTA1WiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K'
     ];
-    
+
     // Get current attempt number
     const currentAttempt = parseInt(img.getAttribute('data-attempt') || '0');
-    
+
     if (currentAttempt < fallbacks.length) {
         img.setAttribute('data-attempt', (currentAttempt + 1).toString());
         img.src = fallbacks[currentAttempt];
@@ -508,13 +507,13 @@ function filterPosts() {
 // ======= COMMENTS LOGIC =======
 async function getUserProfiles(userIds) {
     if (!userIds.length) return {};
-    
+
     try {
         const { data, error } = await supabase
             .from("profiles")
             .select("user_id,display_name,avatar_url")
             .in("user_id", userIds);
-        
+
         if (error) {
             console.error('Error fetching user profiles:', error);
             // Return empty profiles object but don't fail completely
@@ -527,12 +526,12 @@ async function getUserProfiles(userIds) {
             });
             return fallbackProfiles;
         }
-        
+
         const profiles = {};
         data.forEach(profile => {
             profiles[profile.user_id] = profile;
         });
-        
+
         // Add fallback for any missing profiles
         userIds.forEach(userId => {
             if (!profiles[userId]) {
@@ -542,7 +541,7 @@ async function getUserProfiles(userIds) {
                 };
             }
         });
-        
+
         return profiles;
     } catch (err) {
         console.error('Unexpected error fetching profiles:', err);
@@ -639,7 +638,7 @@ function renderCommentInput(post_id) {
                 showToast("Comment added!");
                 await loadComments(post_id);
             }
-        } catch(error => {
+        } .catch(error => {
     console.log('Full error details:', error);
     console.log('Error message:', error.message);
     console.log('Error status:', error.status);
@@ -653,10 +652,10 @@ function renderCommentInput(post_id) {
 function openArticleModal(title, content, category, date, views, imageUrl, postId) {
     // Prevent body scrolling
     document.body.classList.add('modal-open');
-    
+
     // Get the modal overlay
     const modalOverlay = document.getElementById('articleModalOverlay');
-    
+
     // Create enhanced modal content with sidebar
     modalOverlay.innerHTML = `
         <div class="modal-container">
@@ -709,29 +708,29 @@ function openArticleModal(title, content, category, date, views, imageUrl, postI
             </div>
         </div>
     `;
-    
+
     // Show modal
     modalOverlay.style.display = 'block';
     modalOverlay.classList.add('active');
-    
+
     // Scroll modal to top
     setTimeout(() => {
         modalOverlay.scrollTop = 0;
         const modal = modalOverlay.querySelector('.modal');
         if (modal) modal.scrollTop = 0;
     }, 100);
-    
+
     console.log('Modal opened with content length:', content ? content.length : 0);
 }
 
 // NEW: Render sidebar posts
 function renderSidebarPosts(currentPostId) {
     const otherPosts = posts.filter(post => post.id !== currentPostId).slice(0, 8);
-    
+
     if (!otherPosts.length) {
         return '<div class="no-posts">No other posts available</div>';
     }
-    
+
     return otherPosts.map(post => {
         const imageUrl = getPostImageUrl(post);
         return `
@@ -758,7 +757,7 @@ function renderSidebarPosts(currentPostId) {
 function toggleSidebar() {
     const sidebar = document.querySelector('.article-sidebar');
     const toggleBtn = document.querySelector('.toggle-sidebar-btn');
-    
+
     if (sidebar && toggleBtn) {
         sidebar.classList.toggle('collapsed');
         toggleBtn.classList.toggle('active');
@@ -766,15 +765,42 @@ function toggleSidebar() {
 }
 
 // ENHANCED: Enhanced content formatting function
+// FIXED: Enhanced content formatting function with proper Marked.js integration
 function formatArticleContent(content) {
     if (!content || typeof content !== 'string') {
         return '<p>Content not available.</p>';
     }
-    
+
     // Clean and format content
+    // Configure marked.js for proper image rendering
+    if (typeof marked !== 'undefined') {
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            sanitize: false, // Important: Don't sanitize to allow images
+            headerIds: false,
+            mangle: false
+        });
+        
+        // Use marked.js to parse markdown content (including images)
+        try {
+            const parsedContent = marked.parse(content);
+            console.log('Marked.js parsed content:', parsedContent);
+            return parsedContent;
+        } catch (error) {
+            console.error('Marked.js parsing error:', error);
+            // Fallback to manual formatting
+        }
+    }
+    
+    // Fallback manual formatting if marked.js fails
     let formattedContent = content
         .replace(/\r\n/g, '\n')  // Normalize line endings
         .replace(/\n\s*\n\s*\n/g, '\n\n')  // Remove extra blank lines
+        
+        // FIXED: Proper image markdown parsing
+        .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;height:auto;margin:20px 0;border-radius:8px;" loading="lazy">')
+        
         .replace(/\n\n/g, '</p><p>')  // Convert double newlines to paragraphs
         .replace(/\n/g, '<br>')  // Convert single newlines to breaks
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Bold
@@ -783,12 +809,13 @@ function formatArticleContent(content) {
         .replace(/#{3}\s*(.*?)$/gm, '<h3>$1</h3>')  // H3 headers
         .replace(/#{2}\s*(.*?)$/gm, '<h2>$1</h2>')  // H2 headers
         .replace(/#{1}\s*(.*?)$/gm, '<h1>$1</h1>'); // H1 headers
-    
+
     // Wrap in paragraph tags if not already HTML
     if (!formattedContent.includes('<p>') && !formattedContent.includes('<div>')) {
+    if (!formattedContent.includes('<p>') && !formattedContent.includes('<div>') && !formattedContent.includes('<img>')) {
         formattedContent = '<p>' + formattedContent + '</p>';
     }
-    
+
     return formattedContent;
 }
 
@@ -796,17 +823,17 @@ function formatArticleContent(content) {
 function closeArticleModal() {
     // Restore body scrolling
     document.body.classList.remove('modal-open');
-    
+
     // Hide modal
     const modalOverlay = document.getElementById('articleModalOverlay');
     modalOverlay.style.display = 'none';
     modalOverlay.classList.remove('active');
-    
+
     // Clear URL
     if (window.history.pushState) {
         window.history.pushState({}, '', window.location.pathname);
     }
-    
+
     // Clear content to prevent memory leaks
     setTimeout(() => {
         modalOverlay.innerHTML = '';
@@ -843,7 +870,7 @@ function getCategoryColor(category) {
 async function incrementViewCount(postId) {
     try {
         const { data, error } = await supabase.rpc('increment_post_views', { post_id: postId });
-        
+
         if (error) {
             console.error('View count increment failed:', error);
             // Try alternative method - direct update
@@ -851,12 +878,12 @@ async function incrementViewCount(postId) {
                 .from('blogs')
                 .update({ views: supabase.sql`COALESCE(views, 0) + 1` })
                 .eq('id', postId);
-            
+
             if (updateError) {
                 console.error('Alternative view count update also failed:', updateError);
             }
         }
-        
+
         // Update local posts array
         const postIndex = posts.findIndex(p => p.id === postId);
         if (postIndex !== -1) {
@@ -987,14 +1014,14 @@ document.addEventListener('keydown', function(e) {
     // DEBUG: Test image URL generation
 async function testImageHandling() {
     console.log('=== TESTING IMAGE HANDLING ===');
-    
+
     // Test 1: Check storage access
     console.log('1. Testing storage access...');
     try {
         const { data, error } = await supabase.storage
             .from('blog-images')
             .list('', { limit: 1 });
-        
+
         if (error) {
             console.error('❌ Storage access failed:', error.message);
             if (error.message.includes('not found')) {
@@ -1008,13 +1035,13 @@ async function testImageHandling() {
         console.error('❌ Storage connection failed:', err);
         return;
     }
-    
+
     // Test 2: Test URL generation
     console.log('2. Testing URL generation...');
     const testFilename = 'test-image.jpg';
     const publicUrl = getSupabasePublicUrl('blog-images', testFilename);
     console.log('Generated URL:', publicUrl);
-    
+
     // Test 3: Check current posts
     console.log('3. Checking current posts images...');
     posts.forEach((post, index) => {
@@ -1023,10 +1050,22 @@ async function testImageHandling() {
         console.log(`  Processed URL: ${getPostImageUrl(post)}`);
         console.log('---');
     });
-    
+
     console.log('=== TEST COMPLETE ===');
 }
 
 // Make function available in browser console
 window.testImageHandling = testImageHandling;
+    // Add this at the end of your app.js file for debugging
+console.log('Marked.js loaded:', typeof marked !== 'undefined');
+
+// Test markdown rendering
+const testMarkdown = '![test image](https://bzrcawqsbahxjliqlndb.supabase.co/storage/v1/object/public/blog-images/content_1753524951789_7w4pq1js.jpeg)';
+console.log('Markdown input:', testMarkdown);
+
+if (typeof marked !== 'undefined') {
+    console.log('Marked output:', marked.parse(testMarkdown));
+} else {
+    console.error('❌ Marked.js is not loaded!');
+}
 });
