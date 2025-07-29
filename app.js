@@ -639,10 +639,13 @@ function renderCommentInput(post_id) {
                 showToast("Comment added!");
                 await loadComments(post_id);
             }
-        } catch (err) {
-            console.error('Unexpected error adding comment:', err);
-            document.getElementById('commentError').textContent = "An unexpected error occurred. Please try again.";
-        }
+        } .catch(error => {
+    console.log('Full error details:', error);
+    console.log('Error message:', error.message);
+    console.log('Error status:', error.status);
+    console.log('Error code:', error.code);
+    if (error.details) console.log('Error details:', error.details);
+});
     };
 }
 
