@@ -9,6 +9,7 @@ let filteredPosts = [];
 let currentUser = null;
 let lastArticleId = null;
 let modalFocusTrap = null;
+let sidebarVisible = true;
 
 // ======= REMEMBER LOGIN ACTION =======
 let pendingAction = null;
@@ -76,7 +77,7 @@ function renderNavbar() {
 }
 
 // ======= AUTH LOGIC =======
-let authMode = 'login'; // or 'register' or 'forgot'
+let authMode = 'login';
 function showAuthModal(mode = 'login') {
     authMode = mode;
     document.getElementById('authModalTitle').textContent = mode === 'login' ? 'Login' : (mode === 'register' ? 'Register' : 'Password Reset');
@@ -98,18 +99,22 @@ function showAuthModal(mode = 'login') {
     focusTrap(document.getElementById('authModalOverlay'));
     setTimeout(()=>document.getElementById('authEmail').focus(), 120);
 }
+
 function closeAuthModal() {
     document.getElementById('authModalOverlay').style.display = 'none';
     untrapFocus();
 }
+
 document.getElementById('switchAuthText').onclick = function(e) {
     if (e.target.id === 'switchToRegister') showAuthModal('register');
     if (e.target.id === 'switchToLogin') showAuthModal('login');
 };
+
 document.getElementById('forgotPasswordLink').onclick = (e) => {
     e.preventDefault();
     showAuthModal('forgot');
 };
+
 document.getElementById('authForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const email = document.getElementById('authEmail').value;
@@ -125,7 +130,6 @@ document.getElementById('authForm').addEventListener('submit', async function(e)
             closeAuthModal();
             renderNavbar();
             showToast("Logged in!");
-            // Perform pending action if it was set before login
             if (pendingAction) {
                 performAction(pendingAction.action, pendingAction.id);
                 pendingAction = null;
@@ -149,6 +153,7 @@ document.getElementById('authForm').addEventListener('submit', async function(e)
         }
     }
 });
+
 document.getElementById('togglePassword').onclick = function() {
     const pw = document.getElementById('authPassword');
     if (pw.type === 'password') {
@@ -159,6 +164,7 @@ document.getElementById('togglePassword').onclick = function() {
         this.textContent = "👁️";
     }
 };
+
 // ======= GOOGLE SIGNUP =======
 document.getElementById("googleSignupBtn").onclick = async function(e) {
     e.preventDefault();
@@ -196,7 +202,7 @@ async function checkAuth() {
     renderNavbar();
 }
 
-// ======= BLOG POSTS =======
+// ======= ENHANCED ARTICLE MODAL WITH SIDEBAR =======
 async function showArticleModal(postId) {
     const post = posts.find(p => p.id === postId);
     if (!post) {
@@ -207,18 +213,211 @@ async function showArticleModal(postId) {
     // Increment view count
     await incrementViewCount(postId);
     
-    // Open modal with full content and sidebar
-    openArticleModal(post.title, post.content, post.category, post.publish_date, post.views, post.image_url, postId);
+    // Open enhanced modal with sidebar
+    openEnhancedArticleModal(post, postId);
     
     // Load comments and input
     await loadComments(postId);
     renderCommentInput(postId);
     
+    // Load sidebar with other posts
+    renderSidebar(postId);
+    
     // Focus trap for accessibility
     focusTrap(document.getElementById('articleModalOverlay'));
 }
 
-// ENHANCED: Load posts with better image handling
+// ======= ENHANCED MODAL OPENING FUNCTION =======
+function openEnhancedArticleModal(post, postId) {
+    document.body.classList.add('modal-open');
+    const modalOverlay = document.getElementById('articleModalOverlay');
+    const processedImageUrl = processSupabaseImageUrl(post.image_url);
+    
+    modalOverlay.innerHTML = `
+        <div class="modal-container">
+            <!-- Sidebar -->
+            <div class="article-sidebar ${sidebarVisible ? '' : 'collapsed'}" id="articleSidebar">
+                <div class="sidebar-header">
+                    <h3>📚 More Articles</h3>
+                    <button class="close-sidebar" onclick="toggleSidebar()" aria-label="Close sidebar">×</button>
+                </div>
+                <div class="sidebar-content" id="sidebarContent">
+                    <div class="sidebar-loading">Loading articles...</div>
+                </div>
+            </div>
+
+            <!-- Main Article -->
+            <div class="article-modal">
+                <div class="modal-header">
+                    <button class="toggle-sidebar-btn ${sidebarVisible ? 'active' : ''}" onclick="toggleSidebar()" title="Toggle Sidebar">
+                        <span class="sidebar-icon">📋</span>
+                    </button>
+                    <button class="close-btn" onclick="closeArticleModal()" aria-label="Close article">×</button>
+                </div>
+                
+                <div class="modal-body">
+                    <!-- Article Header -->
+                    <div class="article-header">
+                        ${processedImageUrl ? `
+                            <img src="${processedImageUrl}" 
+                                 alt="${escapeHTML(post.title)}" 
+                                 class="article-featured-image"
+                                 onerror="this.style.display='none'">
+                        ` : ''}
+                        <div class="article-meta-top">
+                            <span class="article-category" style="background: ${getCategoryColor(post.category)}">
+                                ${post.category || 'General'}
+                            </span>
+                            <span class="article-views">👁️ ${(post.views || 0) + 1} views</span>
+                        </div>
+                        <h1 class="article-title">${escapeHTML(post.title || 'Untitled')}</h1>
+                        <div class="article-meta">
+                            <span class="article-date">📅 ${formatDateSafe(post.publish_date)}</span>
+                            <span class="article-reading-time">📖 ${calculateReadingTime(post.content)} min read</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Article Content -->
+                    <div class="article-content" id="articleContent">
+                        ${formatArticleContent(post.content)}
+                    </div>
+                    
+                    <!-- Comments Section -->
+                    <div class="comments-section">
+                        <h3>💬 Discussion</h3>
+                        <div id="commentInputBox"></div>
+                        <div id="commentsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    modalOverlay.style.display = 'flex';
+    modalOverlay.classList.add('active');
+    
+    setTimeout(() => {
+        modalOverlay.scrollTop = 0;
+        const modal = modalOverlay.querySelector('.modal-body');
+        if (modal) modal.scrollTop = 0;
+    }, 100);
+}
+
+// ======= SIDEBAR FUNCTIONS =======
+function toggleSidebar() {
+    sidebarVisible = !sidebarVisible;
+    const sidebar = document.getElementById('articleSidebar');
+    const toggleBtn = document.querySelector('.toggle-sidebar-btn');
+    
+    if (sidebarVisible) {
+        sidebar.classList.remove('collapsed');
+        toggleBtn.classList.add('active');
+    } else {
+        sidebar.classList.add('collapsed');
+        toggleBtn.classList.remove('active');
+    }
+}
+
+function renderSidebar(currentPostId) {
+    const sidebarContent = document.getElementById('sidebarContent');
+    if (!sidebarContent) return;
+    
+    // Filter out current post and get other posts
+    const otherPosts = posts.filter(p => p.id !== currentPostId).slice(0, 8);
+    
+    if (otherPosts.length === 0) {
+        sidebarContent.innerHTML = `
+            <div class="no-posts">
+                <div class="no-posts-icon">📝</div>
+                <p>No other articles available</p>
+            </div>
+        `;
+        return;
+    }
+    
+    sidebarContent.innerHTML = otherPosts.map(post => {
+        const imageUrl = getSupabaseImageUrl(post);
+        return `
+            <div class="sidebar-post" onclick="switchToPost(${post.id})" tabindex="0" role="button" aria-label="Read ${escapeHTML(post.title)}">
+                <img src="${imageUrl}" 
+                     alt="${escapeHTML(post.title)}" 
+                     class="sidebar-post-image"
+                     loading="lazy"
+                     onerror="this.src='${getCategoryPlaceholderImage(post.category)}'">
+                <div class="sidebar-post-content">
+                    <h4 class="sidebar-post-title">${escapeHTML(post.title)}</h4>
+                    <div class="sidebar-post-meta">
+                        <span class="sidebar-post-category" style="background: ${getCategoryColor(post.category)}">
+                            ${post.category || 'General'}
+                        </span>
+                        <span class="sidebar-post-date">${formatDateSafe(post.publish_date)}</span>
+                    </div>
+                    <div class="sidebar-post-stats">
+                        <span>👁️ ${post.views || 0}</span>
+                        <span>📖 ${calculateReadingTime(post.content)}m</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Function to switch to another post from sidebar
+async function switchToPost(postId) {
+    if (lastArticleId === postId) return;
+    
+    lastArticleId = postId;
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+    
+    // Update URL
+    if (window.history.pushState) {
+        window.history.pushState({}, '', '?post=' + postId);
+    }
+    
+    // Increment view count
+    await incrementViewCount(postId);
+    
+    // Update main content
+    const processedImageUrl = processSupabaseImageUrl(post.image_url);
+    
+    // Update article header
+    const articleHeader = document.querySelector('.article-header');
+    articleHeader.innerHTML = `
+        ${processedImageUrl ? `
+            <img src="${processedImageUrl}" 
+                 alt="${escapeHTML(post.title)}" 
+                 class="article-featured-image"
+                 onerror="this.style.display='none'">
+        ` : ''}
+        <div class="article-meta-top">
+            <span class="article-category" style="background: ${getCategoryColor(post.category)}">
+                ${post.category || 'General'}
+            </span>
+            <span class="article-views">👁️ ${(post.views || 0) + 1} views</span>
+        </div>
+        <h1 class="article-title">${escapeHTML(post.title || 'Untitled')}</h1>
+        <div class="article-meta">
+            <span class="article-date">📅 ${formatDateSafe(post.publish_date)}</span>
+            <span class="article-reading-time">📖 ${calculateReadingTime(post.content)} min read</span>
+        </div>
+    `;
+    
+    // Update article content
+    document.getElementById('articleContent').innerHTML = formatArticleContent(post.content);
+    
+    // Reload comments and update sidebar
+    await loadComments(postId);
+    renderCommentInput(postId);
+    renderSidebar(postId);
+    
+    // Scroll to top
+    document.querySelector('.modal-body').scrollTop = 0;
+    
+    showToast(`Switched to: ${post.title.substring(0, 30)}...`);
+}
+
+// ======= BLOG POSTS =======
 async function loadPosts() {
     try {
         document.getElementById('blogSpinner').style.display = 'block';
@@ -248,7 +447,6 @@ async function loadPosts() {
     }
 }
 
-// FIXED: Enhanced renderPosts function with proper Supabase image URL handling
 function renderPosts() {
     const blogList = document.getElementById('blogList');
     if (!filteredPosts.length) {
@@ -259,17 +457,16 @@ function renderPosts() {
         return;
     }
     
-    blogList.innerHTML = filteredPosts.map(post => {
+    blogList.innerHTML = filteredPosts.map((post, index) => {
         let excerpt = post.excerpt;
         if (!excerpt || excerpt === 'null') {
             excerpt = post.content ? post.content.substring(0, 150) + '...' : 'No preview available';
         }
         
-        // FIXED: Enhanced image URL handling for Supabase storage
         const imageUrl = getSupabaseImageUrl(post);
         
         return `
-            <div class="enhanced-blog-card" data-id="${post.id}">
+            <div class="enhanced-blog-card" data-id="${post.id}" style="--card-delay: ${index * 0.1}s">
                 <div class="card-image-container">
                     <img src="${imageUrl}" 
                          alt="${escapeHTML(post.title)}" 
@@ -315,59 +512,10 @@ function renderPosts() {
     }).join('');
 }
 
-// FIXED: Enhanced function to get proper Supabase image URL
-function getSupabaseImageUrl(post) {
-    // Try multiple image fields that might contain Supabase URLs
-    let imageUrl = post.image_url || post.featured_image || post.thumbnail_url || post.cover_image;
-    
-    // If we have a URL, process it for Supabase storage
-    if (imageUrl && imageUrl.trim() && imageUrl !== 'null') {
-        // Check if it's already a full URL
-        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-            return imageUrl;
-        }
-        
-        // If it's a Supabase storage path, construct the full URL
-        if (imageUrl.startsWith('blog-images/') || imageUrl.includes('/blog-images/')) {
-            // Remove leading slash if present
-            const cleanPath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
-            // Construct full Supabase storage URL
-            return `${SUPABASE_URL}/storage/v1/object/public/${cleanPath}`;
-        }
-        
-        // If it's just a filename, assume it's in the blog-images bucket
-        if (!imageUrl.includes('/')) {
-            return `${SUPABASE_URL}/storage/v1/object/public/blog-images/${imageUrl}`;
-        }
-        
-        // Return as-is if it doesn't match expected patterns
-        return imageUrl;
-    }
-    
-    // Return category-based placeholder if no image
-    return getCategoryPlaceholderImage(post.category);
-}
-
-// FIXED: Category-based placeholder images
-function getCategoryPlaceholderImage(category) {
-    const placeholders = {
-        'JavaScript': 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=400&h=250&fit=crop&auto=format',
-        'React': 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=250&fit=crop&auto=format',
-        'Node.js': 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&h=250&fit=crop&auto=format',
-        'CSS': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=250&fit=crop&auto=format',
-        'HTML': 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=250&fit=crop&auto=format',
-        'Tutorial': 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=400&h=250&fit=crop&auto=format',
-        'Tips & Tricks': 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=250&fit=crop&auto=format',
-        'General': 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=400&h=250&fit=crop&auto=format'
-    };
-    return placeholders[category] || placeholders['General'];
-}
-
 // ======= SEARCH & FILTER =======
 document.getElementById('searchInput').addEventListener('input', function() { requireLogin('search'); });
 document.getElementById('categoryFilter').addEventListener('change', function() { requireLogin('search'); });
 
-// ======= FILTER FUNCTION =======
 function filterPosts() {
     const searchVal = document.getElementById('searchInput').value.trim().toLowerCase();
     const catVal = document.getElementById('categoryFilter').value;
@@ -379,7 +527,7 @@ function filterPosts() {
     renderPosts();
 }
 
-// ======= COMMENTS LOGIC =======
+// ======= ENHANCED COMMENTS LOGIC =======
 async function getUserProfiles(userIds) {
     if (!userIds.length) return {};
     const { data, error } = await supabase
@@ -404,166 +552,236 @@ async function loadComments(post_id) {
             .select("id,post_id,user_id,content,created_at")
             .eq("post_id", post_id)
             .order("created_at", { ascending: true });
+        
         if (error) {
             console.error('Error loading comments:', error);
-            document.getElementById('commentsList').innerHTML = `<div style="color:#c92c2c">Error loading comments: ${error.message}</div>`;
+            document.getElementById('commentsList').innerHTML = `<div class="error-message">Error loading comments: ${error.message}</div>`;
             return;
         }
+        
         if (!comments.length) {
-            document.getElementById('commentsList').innerHTML = `<div style="color:#888">No comments yet. Be the first!</div>`;
+            document.getElementById('commentsList').innerHTML = `
+                <div class="no-comments">
+                    <div class="no-comments-icon">💭</div>
+                    <p>No comments yet. Start the conversation!</p>
+                </div>
+            `;
             return;
         }
+        
         const userIds = [...new Set(comments.map(c => c.user_id))];
         const profiles = await getUserProfiles(userIds);
+        
         let html = '';
         for (const c of comments) {
             const profile = profiles[c.user_id];
-            const name = profile?.display_name || 'User';
-            const avatar = profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`;
+            const name = profile?.display_name || c.user_id === currentUser?.id ? 
+                (currentUser.user_metadata?.full_name || currentUser.email.split('@')[0]) : 'User';
+            const avatar = profile?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+            
             html += `
-              <div class="comment">
-                <img class="avatar" src="${avatar}" alt="${name}" onerror="this.src='https://ui-avatars.com/api/?name=User'">
-                <div class="comment-body">
-                  <span class="comment-author">${escapeHTML(name)}</span>
-                  <span class="comment-date">${formatDateTime(c.created_at)}</span>
-                  <div class="comment-content">${escapeHTML(c.content)}</div>
+                <div class="comment" data-comment-id="${c.id}">
+                    <img class="avatar" src="${avatar}" alt="${escapeHTML(name)}" onerror="this.src='https://ui-avatars.com/api/?name=User&background=random'">
+                    <div class="comment-body">
+                        <div class="comment-header">
+                            <span class="comment-author">${escapeHTML(name)}</span>
+                            <span class="comment-date">${formatDateTime(c.created_at)}</span>
+                            ${c.user_id === currentUser?.id ? `
+                                <button class="delete-comment-btn" onclick="deleteComment(${c.id}, ${post_id})" title="Delete comment">
+                                    🗑️
+                                </button>
+                            ` : ''}
+                        </div>
+                        <div class="comment-content">${escapeHTML(c.content)}</div>
+                    </div>
                 </div>
-              </div>
             `;
         }
         document.getElementById('commentsList').innerHTML = html;
     } catch (err) {
         console.error('Unexpected error loading comments:', err);
-        document.getElementById('commentsList').innerHTML = `<div style="color:#c92c2c">An unexpected error occurred while loading comments.</div>`;
+        document.getElementById('commentsList').innerHTML = `<div class="error-message">An unexpected error occurred while loading comments.</div>`;
+    }
+}
+
+// ======= DELETE COMMENT FUNCTION =======
+async function deleteComment(commentId, postId) {
+    if (!confirm('Are you sure you want to delete this comment?')) return;
+    
+    try {
+        const { error } = await supabase
+            .from("comments")
+            .delete()
+            .eq("id", commentId)
+            .eq("user_id", currentUser.id); // Extra security - only delete own comments
+        
+        if (error) {
+            console.error('Error deleting comment:', error);
+            showToast("Error deleting comment: " + error.message, 3000);
+        } else {
+            showToast("Comment deleted successfully!");
+            await loadComments(postId);
+        }
+    } catch (err) {
+        console.error('Unexpected error deleting comment:', err);
+        showToast("An unexpected error occurred while deleting comment.", 3000);
     }
 }
 
 function renderCommentInput(post_id) {
     const box = document.getElementById('commentInputBox');
     if (!currentUser) {
-        box.innerHTML = `<div style="color:#777;padding:0.8rem 0.1rem;">Log in to write a comment.</div>`;
+        box.innerHTML = `
+            <div class="login-prompt">
+                <div class="login-prompt-icon">🔐</div>
+                <p>Please <button onclick="showAuthModal('login')" class="inline-login-btn">log in</button> to join the discussion</p>
+            </div>
+        `;
         return;
     }
+    
     box.innerHTML = `
-      <form id="commentForm">
-        <textarea id="commentContent" maxlength="600" placeholder="Write your comment..." required></textarea>
-        <div class="comment-error" id="commentError"></div>
-        <button type="submit">Add Comment</button>
-      </form>
+        <div class="comment-input-container">
+            <div class="comment-input-header">
+                <img src="${currentUser.user_metadata?.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(currentUser.user_metadata?.full_name || currentUser.email.split('@')[0]) + '&background=random'}" 
+                     alt="Your avatar" class="comment-input-avatar">
+                <span class="comment-input-name">${currentUser.user_metadata?.full_name || currentUser.email.split('@')[0]}</span>
+            </div>
+            <form id="commentForm">
+                <div class="comment-input-wrapper">
+                    <textarea id="commentContent" 
+                              maxlength="1000" 
+                              placeholder="Share your thoughts..." 
+                              required
+                              rows="3"></textarea>
+                    <div class="comment-input-footer">
+                        <span class="character-count">0 / 1000</span>
+                        <button type="submit" class="submit-comment-btn">
+                            <span class="submit-icon">💬</span>
+                            Post Comment
+                        </button>
+                    </div>
+                </div>
+                <div class="comment-error" id="commentError"></div>
+            </form>
+        </div>
     `;
+    
+    // Add character counter
+    const textarea = document.getElementById('commentContent');
+    const counter = document.querySelector('.character-count');
+    textarea.addEventListener('input', function() {
+        const count = this.value.length;
+        counter.textContent = `${count} / 1000`;
+        if (count > 900) {
+            counter.style.color = '#dc2626';
+        } else {
+            counter.style.color = '#64748b';
+        }
+    });
+    
     document.getElementById('commentForm').onsubmit = async function(e) {
         e.preventDefault();
         const content = document.getElementById('commentContent').value.trim();
-        document.getElementById('commentError').textContent = '';
+        const errorEl = document.getElementById('commentError');
+        const submitBtn = e.target.querySelector('.submit-comment-btn');
+        
+        errorEl.textContent = '';
+        
         if (!content) {
-            document.getElementById('commentError').textContent = "Comment can't be empty.";
+            errorEl.textContent = "Please write a comment before posting.";
             return;
         }
+        
+        if (content.length > 1000) {
+            errorEl.textContent = "Comment is too long. Maximum 1000 characters allowed.";
+            return;
+        }
+        
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="submit-icon">⏳</span> Posting...';
+        
         try {
+            // Add timestamp to make comments unique (removing unique constraint workaround)
             const { error } = await supabase.from("comments").insert({
                 post_id, 
                 user_id: currentUser.id, 
-                content
+                content,
+                created_at: new Date().toISOString()
             });
+            
             if (error) {
                 console.error('Error adding comment:', error);
-                const errorMsg = error?.message || '';
-                if (errorMsg.includes('duplicate key') || errorMsg.includes('comments_post_id_key')) {
-                    document.getElementById('commentError').textContent = "You already have a comment on this post.";
-                } else {
-                    document.getElementById('commentError').textContent = errorMsg || "An error occurred";
-                }
+                errorEl.textContent = error.message || "Failed to post comment. Please try again.";
             } else {
                 document.getElementById('commentContent').value = '';
-                showToast("Comment added!");
+                showToast("Comment posted successfully! 🎉");
                 await loadComments(post_id);
             }
         } catch (err) {
             console.error('Unexpected error adding comment:', err);
-            document.getElementById('commentError').textContent = "An unexpected error occurred. Please try again.";
+            errorEl.textContent = "An unexpected error occurred. Please try again.";
+        } finally {
+            // Restore button state
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span class="submit-icon">💬</span> Post Comment';
         }
     };
 }
 
-// FIXED: Enhanced modal opening function with proper Supabase image handling
-function openArticleModal(title, content, category, date, views, imageUrl, postId) {
-    // Prevent body scrolling
-    document.body.classList.add('modal-open');
+// ======= HELPER FUNCTIONS =======
+function getSupabaseImageUrl(post) {
+    let imageUrl = post.image_url || post.featured_image || post.thumbnail_url || post.cover_image;
     
-    // Clear existing modal content first
-    const modalOverlay = document.getElementById('articleModalOverlay');
+    if (imageUrl && imageUrl.trim() && imageUrl !== 'null') {
+        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+            return imageUrl;
+        }
+        
+        if (imageUrl.startsWith('blog-images/') || imageUrl.includes('/blog-images/')) {
+            const cleanPath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
+            return `${SUPABASE_URL}/storage/v1/object/public/${cleanPath}`;
+        }
+        
+        if (!imageUrl.includes('/')) {
+            return `${SUPABASE_URL}/storage/v1/object/public/blog-images/${imageUrl}`;
+        }
+        
+        return imageUrl;
+    }
     
-    // Process the image URL for Supabase storage
-    const processedImageUrl = processSupabaseImageUrl(imageUrl);
-    
-    // Create simple modal content without sidebar for better mobile support
-    modalOverlay.innerHTML = `
-        <div class="modal article-modal-simple">
-            <div class="modal-header">
-                <button class="close-btn" onclick="closeArticleModal()" aria-label="Close article">&times;</button>
-            </div>
-            
-            <div class="modal-body">
-                <!-- Article Header -->
-                <div class="article-header">
-                    ${processedImageUrl && processedImageUrl !== 'null' ? `<img id="articleImage" src="${processedImageUrl}" alt="${escapeHTML(title)}" class="article-featured-image" onerror="this.style.display='none'">` : ''}
-                    <div class="article-meta-top">
-                        <span class="article-category" style="background: ${getCategoryColor(category)}">${category || 'General'}</span>
-                        <span class="article-views">👁️ ${(views || 0) + 1} views</span>
-                    </div>
-                    <h1 id="articleTitle" class="article-title">${escapeHTML(title || 'Untitled')}</h1>
-                    <div class="article-meta">
-                        <span id="articleDate" class="article-date">${formatDateSafe(date)}</span>
-                    </div>
-                </div>
-                
-                <!-- Article Content -->
-                <div id="articleContent" class="article-content">
-                    ${formatArticleContent(content)}
-                </div>
-                
-                <!-- Comments Section -->
-                <div class="comments-section">
-                    <h3>Comments</h3>
-                    <div id="commentInputBox"></div>
-                    <div id="commentsList"></div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Show modal
-    modalOverlay.style.display = 'flex';
-    modalOverlay.classList.add('active');
-    
-    // Scroll modal to top
-    setTimeout(() => {
-        modalOverlay.scrollTop = 0;
-        const modal = modalOverlay.querySelector('.modal');
-        if (modal) modal.scrollTop = 0;
-    }, 100);
-    
-    console.log('Modal opened with content length:', content ? content.length : 0);
+    return getCategoryPlaceholderImage(post.category);
 }
 
-// NEW: Function to process Supabase image URLs in modal
+function getCategoryPlaceholderImage(category) {
+    const placeholders = {
+        'JavaScript': 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=400&h=250&fit=crop&auto=format',
+        'React': 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=250&fit=crop&auto=format',
+        'Node.js': 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400&h=250&fit=crop&auto=format',
+        'CSS': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=250&fit=crop&auto=format',
+        'HTML': 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=250&fit=crop&auto=format',
+        'Tutorial': 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=400&h=250&fit=crop&auto=format',
+        'Tips & Tricks': 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=250&fit=crop&auto=format',
+        'General': 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=400&h=250&fit=crop&auto=format'
+    };
+    return placeholders[category] || placeholders['General'];
+}
+
 function processSupabaseImageUrl(imageUrl) {
     if (!imageUrl || imageUrl.trim() === '' || imageUrl === 'null') {
         return null;
     }
     
-    // If it's already a full URL, return as-is
     if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
         return imageUrl;
     }
     
-    // If it's a Supabase storage path, construct the full URL
     if (imageUrl.startsWith('blog-images/') || imageUrl.includes('/blog-images/')) {
         const cleanPath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
         return `${SUPABASE_URL}/storage/v1/object/public/${cleanPath}`;
     }
     
-    // If it's just a filename, assume it's in the blog-images bucket
     if (!imageUrl.includes('/')) {
         return `${SUPABASE_URL}/storage/v1/object/public/blog-images/${imageUrl}`;
     }
@@ -571,44 +789,40 @@ function processSupabaseImageUrl(imageUrl) {
     return imageUrl;
 }
 
-// ENHANCED: Enhanced content formatting function with image processing
 function formatArticleContent(content) {
     if (!content || typeof content !== 'string') {
         return '<p>Content not available.</p>';
     }
     
-    // Clean and format content
     let formattedContent = content
-        .replace(/\r\n/g, '\n')  // Normalize line endings
-        .replace(/\n\s*\n\s*\n/g, '\n\n')  // Remove extra blank lines
-        .replace(/\n\n/g, '</p><p>')  // Convert double newlines to paragraphs
-        .replace(/\n/g, '<br>')  // Convert single newlines to breaks
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // Bold
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')  // Italic
-        .replace(/`(.*?)`/g, '<code>$1</code>')  // Inline code
-        .replace(/#{3}\s*(.*?)$/gm, '<h3>$1</h3>')  // H3 headers
-        .replace(/#{2}\s*(.*?)$/gm, '<h2>$1</h2>')  // H2 headers
-        .replace(/#{1}\s*(.*?)$/gm, '<h1>$1</h1>'); // H1 headers
+        .replace(/\r\n/g, '\n')
+        .replace(/\n\s*\n\s*\n/g, '\n\n')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        .replace(/#{3}\s*(.*?)$/gm, '<h3>$1</h3>')
+        .replace(/#{2}\s*(.*?)$/gm, '<h2>$1</h2>')
+        .replace(/#{1}\s*(.*?)$/gm, '<h1>$1</h1>');
     
-    // Process images in content - convert Supabase storage paths to full URLs
+    // Process images in content
     formattedContent = formattedContent.replace(
         /<img([^>]*?)src=['"]([^'"]*?)['"]([^>]*?)>/gi,
         function(match, beforeSrc, src, afterSrc) {
             const processedSrc = processSupabaseImageUrl(src);
-            return `<img${beforeSrc}src="${processedSrc}"${afterSrc}>`;
+            return `<img${beforeSrc}src="${processedSrc}"${afterSrc} style="max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0;">`;
         }
     );
     
-    // Also handle markdown-style images ![alt](src)
     formattedContent = formattedContent.replace(
         /!\[([^\]]*?)\]\(([^)]*?)\)/g,
         function(match, alt, src) {
             const processedSrc = processSupabaseImageUrl(src);
-            return `<img src="${processedSrc}" alt="${alt}" style="max-width: 100%; height: auto;">`;
+            return `<img src="${processedSrc}" alt="${alt}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0;">`;
         }
     );
     
-    // Wrap in paragraph tags if not already HTML
     if (!formattedContent.includes('<p>') && !formattedContent.includes('<div>')) {
         formattedContent = '<p>' + formattedContent + '</p>';
     }
@@ -616,25 +830,17 @@ function formatArticleContent(content) {
     return formattedContent;
 }
 
-// FIXED: Enhanced close modal function
 function closeArticleModal() {
-    // Restore body scrolling
     document.body.classList.remove('modal-open');
-    
-    // Hide modal
     const modalOverlay = document.getElementById('articleModalOverlay');
     modalOverlay.style.display = 'none';
     modalOverlay.classList.remove('active');
-    
-    // Remove focus trap
     untrapFocus();
     
-    // Clear URL
     if (window.history.pushState) {
         window.history.pushState({}, '', window.location.pathname);
     }
     
-    // Clear content to prevent memory leaks
     setTimeout(() => {
         modalOverlay.innerHTML = `
             <div class="modal" role="dialog" aria-modal="true" aria-labelledby="articleTitle">
@@ -656,7 +862,6 @@ function closeArticleModal() {
     }, 300);
 }
 
-// ENHANCED: Helper functions
 function truncateText(text, maxLength) {
     if (!text) return '';
     return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
@@ -686,7 +891,6 @@ function getCategoryColor(category) {
 async function incrementViewCount(postId) {
     try {
         await supabase.rpc('increment_post_views', { post_id: postId });
-        // Update local posts array
         const postIndex = posts.findIndex(p => p.id === postId);
         if (postIndex !== -1) {
             posts[postIndex].views = (posts[postIndex].views || 0) + 1;
@@ -700,42 +904,23 @@ function formatDateTime(dateString) {
     if (!dateString) return '';
     try {
         const date = new Date(dateString);
-        return isNaN(date) ? 'Unscheduled' : date.toLocaleString('en-US', { 
+        return isNaN(date) ? 'Recently' : date.toLocaleString('en-US', { 
             year: 'numeric', month: 'short', day: 'numeric',
             hour: '2-digit', minute: '2-digit'
         });
     } catch (error) {
         console.error('Error formatting date:', error);
-        return 'Unscheduled';
+        return 'Recently';
     }
 }
 
-// ======= SHARED LINK HANDLING =======
-window.addEventListener('DOMContentLoaded', async function() {
-    try {
-        await checkAuth();
-        await loadPosts();
-        renderNavbar();
-        const params = new URLSearchParams(window.location.search);
-        const postId = params.get('post');
-        if (postId) {
-            const numericPostId = Number(postId);
-            if (!isNaN(numericPostId)) {
-                requireLogin('readMore', numericPostId);
-            }
-        }
-    } catch (error) {
-        console.error('Error during app initialization:', error);
-        showToast("Error loading application. Please refresh the page.");
-    }
-});
-
-// ======= UTILITIES =======
 function formatDateSafe(dateString) {
     if (!dateString) return 'Unscheduled';
     try {
         const date = new Date(dateString);
-        return isNaN(date) ? 'Unscheduled' : date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        return isNaN(date) ? 'Unscheduled' : date.toLocaleDateString('en-US', { 
+            year: 'numeric', month: 'long', day: 'numeric' 
+        });
     } catch (error) {
         console.error('Error formatting date:', error);
         return 'Unscheduled';
@@ -755,7 +940,13 @@ function showToast(msg, duration = 2500) {
     if (toast) {
         toast.textContent = msg;
         toast.style.display = 'block';
-        setTimeout(() => { toast.style.display = 'none'; }, duration);
+        toast.style.opacity = '1';
+        setTimeout(() => { 
+            toast.style.opacity = '0';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 300);
+        }, duration);
     }
 }
 
@@ -795,14 +986,41 @@ function untrapFocus() {
     });
 }
 
+// ======= SHARED LINK HANDLING =======
+window.addEventListener('DOMContentLoaded', async function() {
+    try {
+        await checkAuth();
+        await loadPosts();
+        renderNavbar();
+        const params = new URLSearchParams(window.location.search);
+        const postId = params.get('post');
+        if (postId) {
+            const numericPostId = Number(postId);
+            if (!isNaN(numericPostId)) {
+                requireLogin('readMore', numericPostId);
+            }
+        }
+    } catch (error) {
+        console.error('Error during app initialization:', error);
+        showToast("Error loading application. Please refresh the page.");
+    }
+});
+
 // Enhanced window click handler for modal closing
 window.onclick = function(e) {
     if (e.target.classList && e.target.classList.contains('modal-overlay')) {
         closeAuthModal();
         closeArticleModal();
     }
-    // Close modal when clicking outside the modal container
     if (e.target.id === 'articleModalOverlay') {
         closeArticleModal();
     }
 };
+
+// ======= KEYBOARD NAVIGATION FOR SIDEBAR =======
+document.addEventListener('keydown', function(e) {
+    if (e.target.classList.contains('sidebar-post') && (e.key === 'Enter' || e.key === ' ')) {
+        e.preventDefault();
+        e.target.click();
+    }
+});
