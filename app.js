@@ -3,6 +3,145 @@ const SUPABASE_URL = 'https://bzrcawqsbahxjliqlndb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6cmNhd3FzYmFoeGpsaXFsbmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzMjI4OTgsImV4cCI6MjA2NTg5ODg5OH0._7zsMUy2-MsD6d2UUn31LguYCx6FZaB1ixGsiEyiYwU';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// ===== DYNAMIC META TAGS FUNCTIONS =====
+
+// Function to update meta tags when viewing individual posts
+function updateMetaTags(blogPost) {
+    // Create short description from content if excerpt doesn't exist
+    const description = blogPost.excerpt || blogPost.content.substring(0, 160).replace(/<[^>]*>/g, '') + '...';
+    
+    // Use image_url or fallback to default
+    const coverImage = blogPost.image_url || 'https://YOUR-DOMAIN.com/images/js-blogs-default-cover.jpg';
+    
+    // Create the post URL
+    const postUrl = `${window.location.origin}${window.location.pathname}?post=${blogPost.id}`;
+    
+    // Update all meta tags
+    updateMetaTag('og:title', blogPost.title);
+    updateMetaTag('og:description', description);
+    updateMetaTag('og:image', coverImage);
+    updateMetaTag('og:url', postUrl);
+    updateMetaTag('og:type', 'article');
+    
+    updateMetaTag('twitter:title', blogPost.title);
+    updateMetaTag('twitter:description', description);
+    updateMetaTag('twitter:image', coverImage);
+    
+    // Update page title
+    document.title = `${blogPost.title} - JS BLOGS`;
+    
+    // Update canonical URL
+    updateLinkTag('canonical', postUrl);
+}
+
+// Helper function to update meta tags
+function updateMetaTag(property, content) {
+    let selector;
+    
+    if (property.startsWith('og:')) {
+        selector = `meta[property="${property}"]`;
+    } else {
+        selector = `meta[name="${property}"]`;
+    }
+    
+    let element = document.querySelector(selector);
+    
+    if (element) {
+        element.setAttribute('content', content);
+    } else {
+        // Create new meta tag if it doesn't exist
+        element = document.createElement('meta');
+        if (property.startsWith('og:')) {
+            element.setAttribute('property', property);
+        } else {
+            element.setAttribute('name', property);
+        }
+        element.setAttribute('content', content);
+        document.head.appendChild(element);
+    }
+}
+
+// Helper function to update link tags (like canonical)
+function updateLinkTag(rel, href) {
+    let element = document.querySelector(`link[rel="${rel}"]`);
+    
+    if (element) {
+        element.setAttribute('href', href);
+    } else {
+        element = document.createElement('link');
+        element.setAttribute('rel', rel);
+        element.setAttribute('href', href);
+        document.head.appendChild(element);
+    }
+}
+
+// Function to reset meta tags to default (for homepage)
+function resetMetaTags() {
+    updateMetaTag('og:title', 'JS BLOGS - Modern Tech Blog');
+    updateMetaTag('og:description', 'Discover the latest in tech. Read, share, and explore insightful articles.');
+    updateMetaTag('og:image', 'https://YOUR-DOMAIN.com/images/js-blogs-default-cover.jpg');
+    updateMetaTag('og:url', window.location.origin);
+    updateMetaTag('og:type', 'website');
+    
+    updateMetaTag('twitter:title', 'JS BLOGS - Modern Tech Blog');
+    updateMetaTag('twitter:description', 'Discover the latest in tech. Read, share, and explore insightful articles.');
+    updateMetaTag('twitter:image', 'https://YOUR-DOMAIN.com/images/js-blogs-default-cover.jpg');
+    
+    document.title = 'JS BLOGS - Modern Tech Blog';
+    updateLinkTag('canonical', window.location.origin);
+}
+
+// Function to create share buttons
+function createShareButtons(postId, title) {
+    const shareUrl = `${window.location.origin}${window.location.pathname}?post=${postId}`;
+    const encodedUrl = encodeURIComponent(shareUrl);
+    const encodedTitle = encodeURIComponent(title);
+    
+    return `
+        <div class="share-buttons">
+            <h4>📤 Share this article:</h4>
+            <div class="share-button-group">
+                <a href="https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}" 
+                   target="_blank" rel="noopener" class="share-btn facebook">
+                    📘 Facebook
+                </a>
+                <a href="https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}" 
+                   target="_blank" rel="noopener" class="share-btn twitter">
+                    🐦 Twitter
+                </a>
+                <a href="https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}" 
+                   target="_blank" rel="noopener" class="share-btn linkedin">
+                    💼 LinkedIn
+                </a>
+                <a href="whatsapp://send?text=${encodedTitle} ${encodedUrl}" 
+                   target="_blank" rel="noopener" class="share-btn whatsapp">
+                    💬 WhatsApp
+                </a>
+                <button onclick="copyToClipboard('${shareUrl}')" class="share-btn copy">
+                    📋 Copy Link
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// Function to copy link to clipboard
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        showToast('✅ Link copied to clipboard!');
+    }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showToast('✅ Link copied to clipboard!');
+    });
+}
+
 // ======= GLOBAL STATE =======
 let posts = [];
 let filteredPosts = [];
@@ -210,6 +349,9 @@ async function showArticleModal(postId) {
         return;
     }
     
+    // Update meta tags for social sharing
+    updateMetaTags(post);
+    
     // Increment view count
     await incrementViewCount(postId);
     
@@ -280,6 +422,7 @@ function openEnhancedArticleModal(post, postId) {
                     <!-- Article Content -->
                     <div class="article-content" id="articleContent">
                         ${formatArticleContent(post.content)}
+                        ${createShareButtons(postId, post.title)}
                     </div>
                     
                     <!-- Comments Section -->
@@ -370,6 +513,9 @@ async function switchToPost(postId) {
     const post = posts.find(p => p.id === postId);
     if (!post) return;
     
+    // Update meta tags for new post
+    updateMetaTags(post);
+    
     // Update URL
     if (window.history.pushState) {
         window.history.pushState({}, '', '?post=' + postId);
@@ -403,8 +549,8 @@ async function switchToPost(postId) {
         </div>
     `;
     
-    // Update article content
-    document.getElementById('articleContent').innerHTML = formatArticleContent(post.content);
+    // Update article content with share buttons
+    document.getElementById('articleContent').innerHTML = formatArticleContent(post.content) + createShareButtons(postId, post.title);
     
     // Reload comments and update sidebar
     await loadComments(postId);
