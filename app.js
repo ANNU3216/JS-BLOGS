@@ -11,7 +11,7 @@ function updateMetaTags(blogPost) {
     const description = blogPost.excerpt || blogPost.content.substring(0, 160).replace(/<[^>]*>/g, '') + '...';
     
     // Use image_url or fallback to default
-    const coverImage = blogPost.image_url || 'https://YOUR-DOMAIN.com/images/js-blogs-default-cover.jpg';
+    const coverImage = blogPost.image_url || 'https://jsblogs.live//images/js-blogs-default-cover.jpg';
     
     // Create the post URL
     const postUrl = `${window.location.origin}${window.location.pathname}?post=${blogPost.id}`;
@@ -79,13 +79,13 @@ function updateLinkTag(rel, href) {
 function resetMetaTags() {
     updateMetaTag('og:title', 'JS BLOGS - Modern Tech Blog');
     updateMetaTag('og:description', 'Discover the latest in tech. Read, share, and explore insightful articles.');
-    updateMetaTag('og:image', 'https://YOUR-DOMAIN.com/images/js-blogs-default-cover.jpg');
+    updateMetaTag('og:image', 'https://jsblogs.live//images/js-blogs-default-cover.jpg');
     updateMetaTag('og:url', window.location.origin);
     updateMetaTag('og:type', 'website');
     
     updateMetaTag('twitter:title', 'JS BLOGS - Modern Tech Blog');
     updateMetaTag('twitter:description', 'Discover the latest in tech. Read, share, and explore insightful articles.');
-    updateMetaTag('twitter:image', 'https://YOUR-DOMAIN.com/images/js-blogs-default-cover.jpg');
+    updateMetaTag('twitter:image', 'https://jsblogs.live//images/js-blogs-default-cover.jpg');
     
     document.title = 'JS BLOGS - Modern Tech Blog';
     updateLinkTag('canonical', window.location.origin);
@@ -1170,3 +1170,4 @@ document.addEventListener('keydown', function(e) {
         e.target.click();
     }
 });
+
