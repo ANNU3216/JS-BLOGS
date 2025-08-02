@@ -3,35 +3,73 @@ const SUPABASE_URL = 'https://bzrcawqsbahxjliqlndb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6cmNhd3FzYmFoeGpsaXFsbmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzMjI4OTgsImV4cCI6MjA2NTg5ODg5OH0._7zsMUy2-MsD6d2UUn31LguYCx6FZaB1ixGsiEyiYwU';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ===== DYNAMIC META TAGS FUNCTIONS =====
-
-// Function to update meta tags when viewing individual posts
+// Enhanced meta tag update function
 function updateMetaTags(blogPost) {
-    // Create short description from content if excerpt doesn't exist
-    const description = blogPost.excerpt || blogPost.content.substring(0, 160).replace(/<[^>]*>/g, '') + '...';
+    // Create better description
+    let description = blogPost.excerpt;
+    if (!description || description === 'null' || description.trim() === '') {
+        // Extract text from HTML content and create excerpt
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = blogPost.content || '';
+        const textContent = tempDiv.textContent || tempDiv.innerText || '';
+        description = textContent.substring(0, 160).trim() + (textContent.length > 160 ? '...' : '');
+    }
     
-    // Use image_url or fallback to default
-    const coverImage = blogPost.image_url || 'https://bzrcawqsbahxjliqlndb.supabase.co/storage/v1/object/public/blog-images//cover_1754131623797_vq2eizqw.jpg';
+    // Ensure description is not too short
+    if (description.length < 50) {
+        description = `Read about ${blogPost.title} on JS BLOGS - Discover the latest in tech and development.`;
+    }
     
-    // Create the post URL
+    // Get high-quality image URL
+    const coverImage = getHighQualityImageUrl(blogPost);
+    
+    // Create the canonical post URL (better for SEO)
     const postUrl = `${window.location.origin}${window.location.pathname}?post=${blogPost.id}`;
     
-    // Update all meta tags
-    updateMetaTag('og:title', blogPost.title);
-    updateMetaTag('og:description', description);
-    updateMetaTag('og:image', coverImage);
-    updateMetaTag('og:url', postUrl);
-    updateMetaTag('og:type', 'article');
+    // Update all meta tags with enhanced data
+    const metaUpdates = {
+        // Open Graph tags
+        'og:title': blogPost.title,
+        'og:description': description,
+        'og:image': coverImage,
+        'og:image:width': '1200',
+        'og:image:height': '630',
+        'og:image:alt': blogPost.title,
+        'og:url': postUrl,
+        'og:type': 'article',
+        'og:site_name': 'JS BLOGS',
+        'article:author': blogPost.author || 'JS BLOGS Team',
+        'article:published_time': blogPost.publish_date || new Date().toISOString(),
+        'article:section': blogPost.category || 'Technology',
+        'article:tag': blogPost.category || 'Programming',
+        
+        // Twitter Card tags
+        'twitter:card': 'summary_large_image',
+        'twitter:title': blogPost.title,
+        'twitter:description': description,
+        'twitter:image': coverImage,
+        'twitter:image:alt': blogPost.title,
+        'twitter:url': postUrl,
+        
+        // Basic meta tags
+        'description': description,
+        'keywords': `${blogPost.category || 'programming'}, javascript, web development, tutorial, ${blogPost.title.toLowerCase()}`,
+        'author': blogPost.author || 'JS BLOGS Team'
+    };
     
-    updateMetaTag('twitter:title', blogPost.title);
-    updateMetaTag('twitter:description', description);
-    updateMetaTag('twitter:image', coverImage);
+    // Apply all meta tag updates
+    Object.entries(metaUpdates).forEach(([key, value]) => {
+        updateMetaTag(key, value);
+    });
     
-    // Update page title
-    document.title = `${blogPost.title} - JS BLOGS`;
+    // Update page title with better format
+    document.title = `${blogPost.title} | JS BLOGS - Tech & Development`;
     
     // Update canonical URL
     updateLinkTag('canonical', postUrl);
+    
+    // Add structured data for better SEO
+    addStructuredData(blogPost, postUrl, coverImage, description);
 }
 
 // Helper function to update meta tags
@@ -91,49 +129,105 @@ function resetMetaTags() {
     updateLinkTag('canonical', window.location.origin);
 }
 
-// Function to create share buttons
+// Enhanced share buttons with more options
 function createShareButtons(postId, title) {
+    const post = posts.find(p => p.id === postId);
+    const description = post?.excerpt || `Check out this article: ${title}`;
+    
     const shareUrl = `${window.location.origin}${window.location.pathname}?post=${postId}`;
     const encodedUrl = encodeURIComponent(shareUrl);
     const encodedTitle = encodeURIComponent(title);
+    const encodedDescription = encodeURIComponent(description);
     
     return `
-        <div class="share-buttons">
-            <h4>📤 Share this article:</h4>
+        <div class="share-buttons-enhanced">
+            <h4>🚀 Share this article:</h4>
             <div class="share-button-group">
                 <a href="https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}" 
-                   target="_blank" rel="noopener" class="share-btn facebook">
-                    📘 Facebook
+                   target="_blank" rel="noopener" class="share-btn facebook" 
+                   aria-label="Share on Facebook">
+                    <span class="share-icon">📘</span>
+                    <span class="share-text">Facebook</span>
                 </a>
+                
                 <a href="https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}" 
-                   target="_blank" rel="noopener" class="share-btn twitter">
-                    🐦 Twitter
+                   target="_blank" rel="noopener" class="share-btn twitter"
+                   aria-label="Share on Twitter">
+                    <span class="share-icon">🐦</span>
+                    <span class="share-text">Twitter</span>
                 </a>
+                
                 <a href="https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}" 
-                   target="_blank" rel="noopener" class="share-btn linkedin">
-                    💼 LinkedIn
+                   target="_blank" rel="noopener" class="share-btn linkedin"
+                   aria-label="Share on LinkedIn">
+                    <span class="share-icon">💼</span>
+                    <span class="share-text">LinkedIn</span>
                 </a>
-                <a href="whatsapp://send?text=${encodedTitle} ${encodedUrl}" 
-                   target="_blank" rel="noopener" class="share-btn whatsapp">
-                    💬 WhatsApp
+                
+                <a href="https://wa.me/?text=${encodedTitle}%20${encodedUrl}" 
+                   target="_blank" rel="noopener" class="share-btn whatsapp"
+                   aria-label="Share on WhatsApp">
+                    <span class="share-icon">💬</span>
+                    <span class="share-text">WhatsApp</span>
                 </a>
-                <button onclick="copyToClipboard('${shareUrl}')" class="share-btn copy">
-                    📋 Copy Link
+                
+                <a href="https://reddit.com/submit?url=${encodedUrl}&title=${encodedTitle}" 
+                   target="_blank" rel="noopener" class="share-btn reddit"
+                   aria-label="Share on Reddit">
+                    <span class="share-icon">🔶</span>
+                    <span class="share-text">Reddit</span>
+                </a>
+                
+                <button onclick="copyToClipboard('${shareUrl}', '${title.replace(/'/g, "\\'")}', this)" 
+                        class="share-btn copy" aria-label="Copy link">
+                    <span class="share-icon">📋</span>
+                    <span class="share-text">Copy Link</span>
                 </button>
+                
+                <button onclick="shareNative('${shareUrl}', '${title.replace(/'/g, "\\'")}', '${description.replace(/'/g, "\\'")}'); return false;" 
+                        class="share-btn native" aria-label="Share via device" 
+                        style="display: none;" id="nativeShareBtn-${postId}">
+                    <span class="share-icon">📤</span>
+                    <span class="share-text">Share</span>
+                </button>
+            </div>
+            
+            <div class="share-stats">
+                <small>💡 Tip: Link previews work best on social media!</small>
             </div>
         </div>
     `;
 }
 
-// Function to copy link to clipboard
-function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(function() {
+// Enhanced copy to clipboard with better UX
+function copyToClipboard(url, title, buttonElement) {
+    const textToCopy = `${title}\n\n${url}`;
+    
+    navigator.clipboard.writeText(textToCopy).then(function() {
+        // Update button temporarily
+        const originalIcon = buttonElement.querySelector('.share-icon').textContent;
+        const originalText = buttonElement.querySelector('.share-text').textContent;
+        
+        buttonElement.querySelector('.share-icon').textContent = '✅';
+        buttonElement.querySelector('.share-text').textContent = 'Copied!';
+        buttonElement.style.background = '#10b981';
+        
         showToast('✅ Link copied to clipboard!');
+        
+        // Reset button after 2 seconds
+        setTimeout(() => {
+            buttonElement.querySelector('.share-icon').textContent = originalIcon;
+            buttonElement.querySelector('.share-text').textContent = originalText;
+            buttonElement.style.background = '';
+        }, 2000);
+        
     }).catch(function(err) {
         console.error('Could not copy text: ', err);
         // Fallback for older browsers
         const textArea = document.createElement('textarea');
-        textArea.value = text;
+        textArea.value = textToCopy;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
         document.body.appendChild(textArea);
         textArea.select();
         document.execCommand('copy');
@@ -877,6 +971,181 @@ function renderCommentInput(post_id) {
 }
 
 // ======= HELPER FUNCTIONS =======
+// Get high-quality image URL with fallbacks
+function getHighQualityImageUrl(blogPost) {
+    let imageUrl = blogPost.image_url || blogPost.featured_image || blogPost.thumbnail_url || blogPost.cover_image;
+    
+    if (imageUrl && imageUrl.trim() && imageUrl !== 'null') {
+        // Process Supabase URLs
+        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+            return imageUrl;
+        }
+        
+        if (imageUrl.startsWith('blog-images/') || imageUrl.includes('/blog-images/')) {
+            const cleanPath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
+            return `${SUPABASE_URL}/storage/v1/object/public/${cleanPath}`;
+        }
+        
+        if (!imageUrl.includes('/')) {
+            return `${SUPABASE_URL}/storage/v1/object/public/blog-images/${imageUrl}`;
+        }
+        
+        return imageUrl;
+    }
+    
+    // Return high-quality placeholder based on category
+    return getHighQualityPlaceholder(blogPost.category);
+}
+
+// High-quality placeholder images (1200x630 for social sharing)
+function getHighQualityPlaceholder(category) {
+    const placeholders = {
+        'JavaScript': 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=1200&h=630&fit=crop&auto=format&q=80',
+        'React': 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=1200&h=630&fit=crop&auto=format&q=80',
+        'Node.js': 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1200&h=630&fit=crop&auto=format&q=80',
+        'CSS': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1200&h=630&fit=crop&auto=format&q=80',
+        'HTML': 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&h=630&fit=crop&auto=format&q=80',
+        'Tutorial': 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=1200&h=630&fit=crop&auto=format&q=80',
+        'Tips & Tricks': 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&h=630&fit=crop&auto=format&q=80',
+        'General': 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=1200&h=630&fit=crop&auto=format&q=80'
+    };
+    return placeholders[category] || placeholders['General'];
+}
+
+// Add structured data (JSON-LD) for better SEO
+function addStructuredData(blogPost, postUrl, imageUrl, description) {
+    // Remove existing structured data
+    const existingScript = document.querySelector('script[type="application/ld+json"]');
+    if (existingScript) {
+        existingScript.remove();
+    }
+    
+    const structuredData = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": blogPost.title,
+        "description": description,
+        "image": {
+            "@type": "ImageObject",
+            "url": imageUrl,
+            "width": 1200,
+            "height": 630
+        },
+        "author": {
+            "@type": "Person",
+            "name": blogPost.author || "JS BLOGS Team"
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": "JS BLOGS",
+            "logo": {
+                "@type": "ImageObject",
+                "url": `${window.location.origin}/logo.png`,
+                "width": 200,
+                "height": 60
+            }
+        },
+        "datePublished": blogPost.publish_date || new Date().toISOString(),
+        "dateModified": blogPost.updated_at || blogPost.publish_date || new Date().toISOString(),
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": postUrl
+        },
+        "articleSection": blogPost.category || "Technology",
+        "keywords": `${blogPost.category || 'programming'}, javascript, web development, tutorial`,
+        "wordCount": calculateWordCount(blogPost.content),
+        "timeRequired": `PT${calculateReadingTime(blogPost.content)}M`
+    };
+    
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.textContent = JSON.stringify(structuredData);
+    document.head.appendChild(script);
+}
+
+// Calculate word count for structured data
+function calculateWordCount(content) {
+    if (!content) return 0;
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = content;
+    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+    return textContent.split(/\s+/).filter(word => word.length > 0).length;
+}
+
+// Native sharing API for mobile devices
+function shareNative(url, title, description) {
+    if (navigator.share) {
+        navigator.share({
+            title: title,
+            text: description || `Check out this article: ${title}`,
+            url: url
+        }).then(() => {
+            console.log('Shared successfully');
+            showToast('✅ Shared successfully!');
+        }).catch((error) => {
+            console.log('Error sharing:', error);
+            // Fallback to copy
+            copyToClipboard(url, title, document.querySelector('.share-btn.native'));
+        });
+    } else {
+        // Fallback for browsers without native sharing
+        copyToClipboard(url, title, document.querySelector('.share-btn.native'));
+    }
+}
+
+// Check for native sharing support and show button
+function checkNativeSharing() {
+    if (navigator.share) {
+        setTimeout(() => {
+            const nativeShareBtns = document.querySelectorAll('[id^="nativeShareBtn-"]');
+            nativeShareBtns.forEach(btn => {
+                btn.style.display = 'flex';
+            });
+        }, 1000);
+    }
+}
+
+// Initialize basic meta tags
+function initializeBasicMetaTags() {
+    const head = document.head;
+    
+    // Basic meta tags that should always be present
+    const basicMetaTags = [
+        { property: 'og:site_name', content: 'JS BLOGS' },
+        { property: 'og:type', content: 'website' },
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { property: 'og:locale', content: 'en_US' },
+        { name: 'robots', content: 'index, follow' }
+    ];
+    
+    basicMetaTags.forEach(tag => {
+        const existing = document.querySelector(
+            tag.property ? `meta[property="${tag.property}"]` : `meta[name="${tag.name}"]`
+        );
+        
+        if (!existing) {
+            const meta = document.createElement('meta');
+            if (tag.property) {
+                meta.setAttribute('property', tag.property);
+            } else {
+                meta.setAttribute('name', tag.name);
+            }
+            meta.setAttribute('content', tag.content);
+            head.appendChild(meta);
+        }
+    });
+}
+
+// Initialize enhanced sharing system
+function initializeEnhancedSharing() {
+    // Initialize basic meta tags
+    initializeBasicMetaTags();
+    
+    // Check for native sharing support
+    checkNativeSharing();
+    
+    console.log('Enhanced sharing system initialized');
+}
 function getSupabaseImageUrl(post) {
     let imageUrl = post.image_url || post.featured_image || post.thumbnail_url || post.cover_image;
     
@@ -1135,9 +1404,13 @@ function untrapFocus() {
 // ======= SHARED LINK HANDLING =======
 window.addEventListener('DOMContentLoaded', async function() {
     try {
+        // Initialize enhanced sharing first
+        initializeEnhancedSharing();
+        
         await checkAuth();
         await loadPosts();
         renderNavbar();
+        
         const params = new URLSearchParams(window.location.search);
         const postId = params.get('post');
         if (postId) {
@@ -1170,6 +1443,7 @@ document.addEventListener('keydown', function(e) {
         e.target.click();
     }
 });
+
 
 
 
