@@ -885,13 +885,13 @@ function getSupabaseImageUrl(post) {
             return imageUrl;
         }
         
-        if (imageUrl.startsWith('blog-images//') || imageUrl.includes('/blog-images//')) {
+        if (imageUrl.startsWith('blog-images/') || imageUrl.includes('/blog-images/')) {
             const cleanPath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
             return `${SUPABASE_URL}/storage/v1/object/public/${cleanPath}`;
         }
         
         if (!imageUrl.includes('/')) {
-            return `${SUPABASE_URL}/storage/v1/object/public/blog-images//${imageUrl}`;
+            return `${SUPABASE_URL}/storage/v1/object/public/blog-images/${imageUrl}`;
         }
         
         return imageUrl;
@@ -923,13 +923,13 @@ function processSupabaseImageUrl(imageUrl) {
         return imageUrl;
     }
     
-    if (imageUrl.startsWith('blog-images//') || imageUrl.includes('/blog-images//')) {
+    if (imageUrl.startsWith('blog-images/') || imageUrl.includes('/blog-images/')) {
         const cleanPath = imageUrl.startsWith('/') ? imageUrl.substring(1) : imageUrl;
         return `${SUPABASE_URL}/storage/v1/object/public/${cleanPath}`;
     }
     
     if (!imageUrl.includes('/')) {
-        return `${SUPABASE_URL}/storage/v1/object/public/blog-images//${imageUrl}`;
+        return `${SUPABASE_URL}/storage/v1/object/public/blog-images/${imageUrl}`;
     }
     
     return imageUrl;
@@ -1170,6 +1170,7 @@ document.addEventListener('keydown', function(e) {
         e.target.click();
     }
 });
+
 
 
 
