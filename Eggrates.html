@@ -1,221 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9009969511217319" crossorigin="anonymous"></script>
-    <script>
-        (adsbygoogle = window.adsbygoogle || []).push({
-            google_ad_client: "ca-pub-9009969511217319",
-            enable_page_level_ads: true
-        });
-    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daily Egg Rates - Official</title>
+    <title>Daily Egg Rates - Data by NECC Official</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f5f5f5;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        .header {
-            background: linear-gradient(135deg, #2c3e50, #34495e);
-            color: white;
-            text-align: center;
-            padding: 25px;
-            border-radius: 10px 10px 0 0;
-        }
-
-        .header h1 {
-            font-size: 2.2em;
-            margin-bottom: 8px;
-        }
-
-        .header p {
-            font-size: 1.1em;
-            opacity: 0.9;
-        }
-
-        .content {
-            padding: 30px;
-        }
-
-        .date-section {
-            margin-bottom: 25px;
-            border: 2px solid #e74c3c;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .date-header {
-            background: #e74c3c;
-            color: white;
-            padding: 15px 20px;
-            font-size: 1.3em;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .rates-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .rates-table th {
-            background: #34495e;
-            color: white;
-            padding: 12px 8px;
-            text-align: left;
-            font-weight: bold;
-            font-size: 0.95em;
-        }
-
-        .rates-table td {
-            padding: 10px 8px;
-            border-bottom: 1px solid #ddd;
-            font-size: 0.9em;
-        }
-
-        .rates-table tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-
-        .rates-table tr:hover {
-            background-color: #f1c40f;
-            transition: background-color 0.3s;
-        }
-
-        .price {
-            font-weight: bold;
-            color: #e74c3c;
-            font-size: 1em;
-        }
-
-        .location {
-            font-weight: bold;
-            color: #2c3e50;
-            min-width: 120px;
-        }
-
-        .trend {
-            font-weight: bold;
-            font-size: 0.85em;
-        }
-
-        .trend.up {
-            color: #27ae60;
-        }
-
-        .trend.down {
-            color: #e74c3c;
-        }
-
-        .trend.stable {
-            color: #f39c12;
-        }
-
-        .summary-box {
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 20px;
-            text-align: center;
-        }
-
-        .summary-box h3 {
-            margin-bottom: 15px;
-            font-size: 1.4em;
-        }
-
-        .summary-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-        }
-
-        .stat-item {
-            background: rgba(255,255,255,0.1);
-            padding: 15px;
-            border-radius: 5px;
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 1.8em;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .footer-info {
-            background: #ecf0f1;
-            padding: 20px;
-            margin-top: 20px;
-            border-radius: 8px;
-            text-align: center;
-            color: #7f8c8d;
-        }
-
-        .section-divider {
-            background: #95a5a6;
-            color: white;
-            padding: 8px 15px;
-            font-weight: bold;
-            font-size: 0.9em;
-        }
-
-        @media (max-width: 768px) {
-            .rates-table {
-                font-size: 0.8em;
-            }
-            
-            .rates-table th,
-            .rates-table td {
-                padding: 6px 4px;
-            }
-            
-            .date-header {
-                font-size: 1.1em;
-                flex-direction: column;
-                gap: 5px;
-            }
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #2c3e50, #34495e); color: white; text-align: center; padding: 25px; border-radius: 10px 10px 0 0; }
+        .header h1 { font-size: 2.2em; margin-bottom: 8px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .content { padding: 30px; }
+        .date-section { margin-bottom: 25px; border: 2px solid #e74c3c; border-radius: 8px; overflow: hidden; }
+        .date-header { background: #e74c3c; color: white; padding: 15px 20px; font-size: 1.3em; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+        .rates-table { width: 100%; border-collapse: collapse; }
+        .rates-table th { background: #34495e; color: white; padding: 12px 8px; text-align: left; font-weight: bold; font-size: 0.95em; }
+        .rates-table td { padding: 10px 8px; border-bottom: 1px solid #ddd; font-size: 0.9em; }
+        .rates-table tr:nth-child(even) { background-color: #f9f9f9; }
+        .rates-table tr:hover { background-color: #f1c40f; transition: background-color 0.3s; }
+        .price { font-weight: bold; color: #e74c3c; font-size: 1em; }
+        .location { font-weight: bold; color: #2c3e50; min-width: 120px; }
+        .trend { font-weight: bold; font-size: 0.85em; }
+        .trend.up { color: #27ae60; }
+        .trend.down { color: #e74c3c; }
+        .trend.stable { color: #f39c12; }
+        .summary-box { background: linear-gradient(135deg, #3498db, #2980b9); color: white; padding: 20px; border-radius: 8px; margin-top: 20px; text-align: center; }
+        .summary-box h3 { margin-bottom: 15px; font-size: 1.4em; }
+        .summary-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
+        .stat-item { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 5px; text-align: center; }
+        .stat-value { font-size: 1.8em; font-weight: bold; margin-bottom: 5px; }
+        .footer-info { background: #ecf0f1; padding: 20px; margin-top: 20px; border-radius: 8px; text-align: center; color: #7f8c8d; }
+        .section-divider { background: #95a5a6; color: white; padding: 8px 15px; font-weight: bold; font-size: 0.9em; }
+        @media (max-width: 768px) { .rates-table { font-size: 0.8em; } .rates-table th, .rates-table td { padding: 6px 4px; } .date-header { font-size: 1.1em; flex-direction: column; gap: 5px; } }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="hero-section">
-            <!-- Back to Home button: direct link, no JS -->
-            <a href="js blog.html" class="nav-back">← Back to Home</a>
-            <div class="hero-content">
         <div class="header">
-            <h1>🥚 DAILY EGG RATES</h1>
-            <p> DAILY EGG RATES - Official rates by NECC</p>
+            <h1>🥚 NECC DAILY EGG RATES</h1>
+            <p>National Egg Coordination Committee - Official Rates</p>
         </div>
-
         <div class="content">
-            <!-- TODAY'S RATES - UPDATE DAILY -->
             <div class="date-section">
                 <div class="date-header">
-                    <span>📅 Thursday, July 24, 2025</span>
-                    <span>🕐 Last Updated: 6:00 PM</span>
+                    <span>📅 Sunday, August 3, 2025</span>
+                    <span>🕐 Last Updated: 18:46</span>
                 </div>
                 <table class="rates-table">
                     <thead>
@@ -228,262 +58,258 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- NECC SUGGESTED PRICES SECTION -->
                         <tr class="section-divider">
                             <td colspan="5" class="section-divider">NECC SUGGESTED PRICES</td>
                         </tr>
                         <tr>
                             <td class="location">Ahmedabad</td>
-                            <td class="price">₹5.95/100</td>
-                            <td class="price">₹6.00/100</td>
-                            <td class="trend down">↓ -₹0.05</td>
-                            <td>Grade A</td>
-                        </tr>
-                        <tr>
-                            <td class="location">Ajmer</td>
-                            <td class="price">₹5.50/100</td>
-                            <td class="price">₹5.50/100</td>
+                            <td class="price">₹4.80/100</td>
+                            <td class="price">₹4.80/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
+                            <td class="location">Ajmer</td>
+                            <td class="price">₹4.50/100</td>
+                            <td class="price">₹4.40/100</td>
+                            <td class="trend up">↑ +₹0.10</td>
+                            <td>Grade A</td>
+                        </tr>
+                        <tr>
                             <td class="location">Barwala</td>
-                            <td class="price">₹5.21/100</td>
-                            <td class="price">₹5.21/100</td>
+                            <td class="price">₹4.35/100</td>
+                            <td class="price">₹4.35/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Bengaluru (CC)</td>
-                            <td class="price">₹6.20/100</td>
-                            <td class="price">₹6.20/100</td>
-                            <td class="trend stable">→ Stable</td>
+                            <td class="price">₹4.85/100</td>
+                            <td class="price">₹4.80/100</td>
+                            <td class="trend up">↑ +₹0.05</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Brahmapur (OD)</td>
-                            <td class="price">₹5.85/100</td>
-                            <td class="price">₹5.85/100</td>
-                            <td class="trend stable">→ Stable</td>
+                            <td class="price">₹4.85/100</td>
+                            <td class="price">₹4.80/100</td>
+                            <td class="trend up">↑ +₹0.05</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Chennai (CC)</td>
-                            <td class="price">₹6.40/100</td>
-                            <td class="price">₹6.40/100</td>
-                            <td class="trend stable">→ Stable</td>
+                            <td class="price">₹5.20/100</td>
+                            <td class="price">₹5.10/100</td>
+                            <td class="trend up">↑ +₹0.10</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Chittoor</td>
-                            <td class="price">₹6.33/100</td>
-                            <td class="price">₹6.33/100</td>
-                            <td class="trend stable">→ Stable</td>
+                            <td class="price">₹5.13/100</td>
+                            <td class="price">₹5.03/100</td>
+                            <td class="trend up">↑ +₹0.10</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Delhi (CC)</td>
-                            <td class="price">₹5.40/100</td>
-                            <td class="price">₹5.40/100</td>
+                            <td class="price">₹4.55/100</td>
+                            <td class="price">₹4.55/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">E.Godavari</td>
-                            <td class="price">₹5.70/100</td>
-                            <td class="price">₹5.70/100</td>
+                            <td class="price">₹4.65/100</td>
+                            <td class="price">₹4.65/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Hospet</td>
-                            <td class="price">₹5.70/100</td>
-                            <td class="price">₹5.70/100</td>
-                            <td class="trend stable">→ Stable</td>
+                            <td class="price">₹4.35/100</td>
+                            <td class="price">₹4.30/100</td>
+                            <td class="trend up">↑ +₹0.05</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Hyderabad</td>
-                            <td class="price">₹5.70/100</td>
-                            <td class="price">₹5.75/100</td>
-                            <td class="trend down">↓ -₹0.05</td>
-                            <td>Grade A</td>
-                        </tr>
-                        <tr>
-                            <td class="location">Jabalpur</td>
-                            <td class="price">₹5.95/100</td>
-                            <td class="price">₹6.01/100</td>
-                            <td class="trend down">↓ -₹0.06</td>
-                            <td>Grade A</td>
-                        </tr>
-                        <tr>
-                            <td class="location">Kolkata (WB)</td>
-                            <td class="price">₹6.40/100</td>
-                            <td class="price">₹6.40/100</td>
+                            <td class="price">₹4.30/100</td>
+                            <td class="price">₹4.30/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
+                            <td class="location">Jabalpur</td>
+                            <td class="price">₹4.53/100</td>
+                            <td class="price">₹4.50/100</td>
+                            <td class="trend up">↑ +₹0.03</td>
+                            <td>Grade A</td>
+                        </tr>
+                        <tr>
+                            <td class="location">Kolkata (WB)</td>
+                            <td class="price">₹5.45/100</td>
+                            <td class="price">₹5.40/100</td>
+                            <td class="trend up">↑ +₹0.05</td>
+                            <td>Grade A</td>
+                        </tr>
+                        <tr>
                             <td class="location">Ludhiana</td>
-                            <td class="price">₹5.21/100</td>
-                            <td class="price">₹5.21/100</td>
+                            <td class="price">₹4.37/100</td>
+                            <td class="price">₹4.37/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Mumbai (CC)</td>
-                            <td class="price">₹6.30/100</td>
-                            <td class="price">₹6.35/100</td>
-                            <td class="trend down">↓ -₹0.05</td>
+                            <td class="price">₹4.85/100</td>
+                            <td class="price">₹4.85/100</td>
+                            <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Mysuru</td>
-                            <td class="price">₹6.25/100</td>
-                            <td class="price">₹6.25/100</td>
-                            <td class="trend stable">→ Stable</td>
+                            <td class="price">₹4.95/100</td>
+                            <td class="price">₹4.90/100</td>
+                            <td class="trend up">↑ +₹0.05</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Namakkal</td>
-                            <td class="price">₹5.75/100</td>
-                            <td class="price">₹5.75/100</td>
-                            <td class="trend stable">→ Stable</td>
+                            <td class="price">₹4.55/100</td>
+                            <td class="price">₹4.50/100</td>
+                            <td class="trend up">↑ +₹0.05</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Pune</td>
-                            <td class="price">₹6.30/100</td>
-                            <td class="price">₹6.35/100</td>
-                            <td class="trend down">↓ -₹0.05</td>
+                            <td class="price">₹4.70/100</td>
+                            <td class="price">₹4.70/100</td>
+                            <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Raipur</td>
-                            <td class="price">₹5.78/100</td>
-                            <td class="price">₹5.85/100</td>
-                            <td class="trend down">↓ -₹0.07</td>
+                            <td class="price">₹4.50/100</td>
+                            <td class="price">₹4.50/100</td>
+                            <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Surat</td>
-                            <td class="price">₹6.10/100</td>
-                            <td class="price">₹6.15/100</td>
-                            <td class="trend down">↓ -₹0.05</td>
+                            <td class="price">₹4.75/100</td>
+                            <td class="price">₹4.75/100</td>
+                            <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Vijayawada</td>
-                            <td class="price">₹5.90/100</td>
-                            <td class="price">₹5.90/100</td>
+                            <td class="price">₹4.75/100</td>
+                            <td class="price">₹4.75/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Vizag</td>
-                            <td class="price">₹5.85/100</td>
-                            <td class="price">₹5.85/100</td>
+                            <td class="price">₹4.65/100</td>
+                            <td class="price">₹4.65/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">W.Godavari</td>
-                            <td class="price">₹5.70/100</td>
-                            <td class="price">₹5.70/100</td>
+                            <td class="price">₹4.65/100</td>
+                            <td class="price">₹4.65/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Warangal</td>
-                            <td class="price">₹5.72/100</td>
-                            <td class="price">₹5.77/100</td>
-                            <td class="trend down">↓ -₹0.05</td>
+                            <td class="price">₹4.32/100</td>
+                            <td class="price">₹4.32/100</td>
+                            <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
-
-                        <!-- PREVAILING PRICES SECTION -->
                         <tr class="section-divider">
                             <td colspan="5" class="section-divider">PREVAILING PRICES</td>
                         </tr>
                         <tr>
                             <td class="location">Allahabad (CC)</td>
-                            <td class="price">₹5.95/100</td>
-                            <td class="price">₹5.95/100</td>
+                            <td class="price">₹4.90/100</td>
+                            <td class="price">₹4.90/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Bhopal</td>
-                            <td class="price">₹5.90/100</td>
-                            <td class="price">₹6.00/100</td>
-                            <td class="trend down">↓ -₹0.10</td>
+                            <td class="price">₹4.55/100</td>
+                            <td class="price">₹4.55/100</td>
+                            <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Indore (CC)</td>
-                            <td class="price">₹5.80/100</td>
-                            <td class="price">₹5.80/100</td>
+                            <td class="price">₹4.50/100</td>
+                            <td class="price">₹4.50/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Kanpur (CC)</td>
-                            <td class="price">₹5.67/100</td>
-                            <td class="price">₹5.67/100</td>
+                            <td class="price">₹4.90/100</td>
+                            <td class="price">₹4.90/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Lucknow (CC)</td>
-                            <td class="price">₹5.95/100</td>
-                            <td class="price">₹5.95/100</td>
+                            <td class="price">₹5.17/100</td>
+                            <td class="price">₹5.17/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Muzaffurpur (CC)</td>
-                            <td class="price">₹5.85/100</td>
-                            <td class="price">₹5.85/100</td>
+                            <td class="price">₹4.95/100</td>
+                            <td class="price">₹4.95/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Nagpur</td>
-                            <td class="price">₹6.05/100</td>
-                            <td class="price">₹6.10/100</td>
-                            <td class="trend down">↓ -₹0.05</td>
+                            <td class="price">₹4.45/100</td>
+                            <td class="price">₹4.45/100</td>
+                            <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Patna</td>
-                            <td class="price">₹5.85/100</td>
-                            <td class="price">₹5.85/100</td>
+                            <td class="price">₹4.95/100</td>
+                            <td class="price">₹4.95/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Ranchi (CC)</td>
-                            <td class="price">₹5.90/100</td>
-                            <td class="price">₹5.90/100</td>
-                            <td class="trend stable">→ Stable</td>
+                            <td class="price">₹4.90/100</td>
+                            <td class="price">₹5.00/100</td>
+                            <td class="trend down">↓ -₹0.10</td>
                             <td>Grade A</td>
                         </tr>
                         <tr>
                             <td class="location">Varanasi (CC)</td>
-                            <td class="price">₹5.67/100</td>
-                            <td class="price">₹5.67/100</td>
+                            <td class="price">₹4.87/100</td>
+                            <td class="price">₹4.87/100</td>
                             <td class="trend stable">→ Stable</td>
                             <td>Grade A</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-
             <div class="summary-box">
                 <h3>📊 Today's Market Summary</h3>
                 <div class="summary-stats">
                     <div class="stat-item">
-                        <div class="stat-value">₹5.85</div>
+                        <div class="stat-value">₹4.73</div>
                         <div>Average Rate (per 100)</div>
                     </div>
                     <div class="stat-item">
@@ -500,31 +326,13 @@
                     </div>
                 </div>
             </div>
-
             <div class="footer-info">
-                <p><strong>Daily Egg rates by NECC</strong></p>
+                <p><strong>Daily Egg Rates by NECC</strong></p>
                 <p>Rates are per 100 eggs | Suggested prices are recommendations</p>
                 <p>Prevailing prices reflect actual market conditions</p>
                 <p>Next update: <strong>Tomorrow at 8:00 AM</strong></p>
             </div>
         </div>
     </div>
-
-    <script>
-        // Add current date automatically
-        function updateDates() {
-            const today = new Date();
-            const options = { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            };
-            
-            console.log('Today:', today.toLocaleDateString('en-US', options));
-        }
-        
-        updateDates();
-    </script>
 </body>
 </html>
