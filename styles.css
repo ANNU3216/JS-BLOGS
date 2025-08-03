@@ -9,7 +9,7 @@ body {
 .navbar {
     background: linear-gradient(90deg, #4f46e5 10%, #7c3aed 90%);
     color: white;
-    padding: 0.8rem 0;
+    padding: 1.2rem 0;      /* Increase padding for better spacing */
     position: sticky;
     top: 0;
     z-index: 10;
@@ -20,8 +20,16 @@ body {
     margin: 0 auto;
     padding: 0 2rem;
     display: flex;
+    flex-direction: column;  /* Stack items vertically */
+    align-items: center;     /* Center everything horizontally */
+    gap: 1rem;              /* Add space between logo and nav */
+}
+.nav-bottom {
+    display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 2rem;
+    flex-wrap: wrap;        /* Allow wrapping on smaller screens */
 }
 .logo {
     font-size: 2rem;
@@ -3211,3 +3219,4 @@ html, body {
     50% { transform: scale(1.05); }
     100% { transform: scale(1); }
 }
+
