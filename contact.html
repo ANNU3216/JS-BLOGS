@@ -294,28 +294,57 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        document.getElementById('contactForm').addEventListener('submit', function(e) {
+        // Initialize Supabase client
+        // Replace with your actual Supabase URL and Anon Key
+        const SUPABASE_URL = 'https://bzrcawqsbahxjliqlndb.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6cmNhd3FzYmFoeGpsaXFsbmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAzMjI4OTgsImV4cCI6MjA2NTg5ODg5OH0._7zsMUy2-MsD6d2UUn31LguYCx6FZaB1ixGsiEyiYwU';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        document.getElementById('contactForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+            
+            // Show loading state
+            const submitBtn = this.querySelector('.submit-btn');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Sending...';
+            submitBtn.disabled = true;
             
             // Get form data
             const formData = new FormData(this);
-            const name = formData.get('name');
-            const email = formData.get('email');
-            const subject = formData.get('subject');
-            const message = formData.get('message');
+            const messageData = {
+                name: formData.get('name'),
+                email: formData.get('email'),
+                subject: formData.get('subject'),
+                message: formData.get('message')
+            };
             
-            // Create mailto link
-            const mailtoLink = `mailto:jsosjagtial@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(`Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`)}`;
-            
-            // Open email client
-            window.location.href = mailtoLink;
-            
-            // Show success message
-            alert('Thank you for your message! Your email client should open now.');
-            
-            // Reset form
-            this.reset();
+            try {
+                // Insert data into Supabase
+                const { data, error } = await supabase
+                    .from('contact_messages')
+                    .insert([messageData]);
+                
+                if (error) {
+                    throw error;
+                }
+                
+                // Success message
+                alert('Thank you for your message! We\'ll get back to you soon.');
+                
+                // Reset form
+                this.reset();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Sorry, there was an error sending your message. Please try again.');
+            } finally {
+                // Reset button state
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
         });
 
         // Add smooth scrolling and interaction effects
