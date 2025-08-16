@@ -269,7 +269,7 @@ function performAction(action, id) {
         case 'jsmatrimony':
             window.open('jsmatrimony.html', '_blank', 'noopener,noreferrer');
             break;
-        case 'Contact':
+        case 'contact':
             window.location.href = 'contact.html';
             break;
         case 'readMore':
@@ -1446,6 +1446,7 @@ document.addEventListener('keydown', function(e) {
         e.target.click();
     }
 });
+
 
 
 
