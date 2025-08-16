@@ -266,11 +266,11 @@ function performAction(action, id) {
             break;
         case 'Eggrates':
             window.location.href = 'Eggrates.html';
-        case 'Contact':
-            window.location.href = 'contact.html';
-            break;    
         case 'jsmatrimony':
             window.open('jsmatrimony.html', '_blank', 'noopener,noreferrer');
+            break;
+        case 'Contact':
+            window.location.href = 'contact.html';
             break;
         case 'readMore':
             lastArticleId = id;
@@ -292,10 +292,10 @@ function renderNavbar() {
         <li><button onclick="requireLogin('blogs')">Blogs</button></li>
         <li><button onclick="performAction('about')">About</button></li>
         <li><button onclick="performAction('Eggrates')">Eggrates</button></li>
-        <li><button onclick="performAction('contact')">contact</button></li>
         <li>
           <button onclick="requireLogin('jsmatrimony')">JS Matrimony</button>
         </li>
+        <li><button onclick="performAction('contact')">contact</button></li>
         ${
             currentUser
             ? `<li><button onclick="logoutUser()" tabindex="0">Logout</button></li>
@@ -1446,6 +1446,7 @@ document.addEventListener('keydown', function(e) {
         e.target.click();
     }
 });
+
 
 
 
