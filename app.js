@@ -117,13 +117,13 @@ function updateLinkTag(rel, href) {
 function resetMetaTags() {
     updateMetaTag('og:title', 'JS BLOGS - Modern Tech Blog');
     updateMetaTag('og:description', 'Discover the latest in tech. Read, share, and explore insightful articles.');
-    updateMetaTag('og:image', 'https://bzrcawqsbahxjliqlndb.supabase.co/storage/v1/object/public/blog-images//cover_1754131623797_vq2eizqw.jpg');
+    updateMetaTag('og:image', 'https://bzrcawqsbahxjliqlndb.supabase.co/storage/v1/object/public/blog-images/cover_1755576950927_dfyv8dol.jpg');
     updateMetaTag('og:url', window.location.origin);
     updateMetaTag('og:type', 'website');
     
     updateMetaTag('twitter:title', 'JS BLOGS - Modern Tech Blog');
     updateMetaTag('twitter:description', 'Discover the latest in tech. Read, share, and explore insightful articles.');
-    updateMetaTag('twitter:image', 'https://bzrcawqsbahxjliqlndb.supabase.co/storage/v1/object/public/blog-images//cover_1754131623797_vq2eizqw.jpg');
+    updateMetaTag('twitter:image', 'https://bzrcawqsbahxjliqlndb.supabase.co/storage/v1/object/public/blog-images/cover_1755576950927_dfyv8dol.jpg');
     
     document.title = 'JS BLOGS - Modern Tech Blog';
     updateLinkTag('canonical', window.location.origin);
@@ -1446,6 +1446,7 @@ document.addEventListener('keydown', function(e) {
         e.target.click();
     }
 });
+
 
 
 
